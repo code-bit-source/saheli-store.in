@@ -1,6 +1,8 @@
 // ==========================
 // File: components/Admin.jsx
 // Saheli Store – Full Admin Panel (Products + Orders + Analytics + Receipts)
+// ✅ Updated: better delete error handling, robust receipt generation/opening,
+//    and payment label shows "Online Payment" when paymentStatus === "Paid"
 // ==========================
 
 import { useState, useEffect } from "react";
@@ -23,19 +25,22 @@ import {
   FaUsers,
 } from "react-icons/fa";
 
-// ✅ Dynamic API URLs from .env (Vercel Ready)
-// const BASE_URL = import.meta.env.VITE_API_URL?.trim().replace(/\/$/, "") || "";
+// ✅ Dynamic API URLs (Vercel-ready)
 const API_URL = `https://saheli-backend.vercel.app/api/products`;
 const ORDER_URL = `https://saheli-backend.vercel.app/api/orders`;
 const ADMIN_LOGGED = "admin_logged";
 
 export default function Admin() {
-  const [isLoggedIn, setIsLoggedIn] = useState(localStorage.getItem(ADMIN_LOGGED) === "true");
+  const [isLoggedIn, setIsLoggedIn] = useState(
+    localStorage.getItem(ADMIN_LOGGED) === "true"
+  );
   const [activePage, setActivePage] = useState("dashboard");
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
 
+  // ==========================
   // 🔹 Fetch data after login
+  // ==========================
   useEffect(() => {
     if (isLoggedIn) {
       fetchProducts();
@@ -43,13 +48,10 @@ export default function Admin() {
     }
   }, [isLoggedIn]);
 
-  // ==========================
-  // 🔹 API HANDLERS
-  // ==========================
   async function fetchProducts() {
     try {
       const res = await axios.get(API_URL);
-      setProducts(res.data.products || res.data);
+      setProducts(res.data.products || res.data || []);
     } catch (error) {
       console.error("❌ Error fetching products:", error);
     }
@@ -58,7 +60,7 @@ export default function Admin() {
   async function fetchOrders() {
     try {
       const res = await axios.get(ORDER_URL);
-      setOrders(res.data.orders || res.data);
+      setOrders(res.data.orders || res.data || []);
     } catch (error) {
       console.error("❌ Error fetching orders:", error);
     }
@@ -129,7 +131,8 @@ export default function Admin() {
         setEditProduct(null);
         resetForm();
         alert("✏️ Updated successfully!");
-      } catch {
+      } catch (err) {
+        console.error(err);
         alert("❌ Failed to update product");
       }
     }
@@ -140,7 +143,8 @@ export default function Admin() {
         await axios.delete(`${API_URL}/${id}`);
         setProducts(products.filter((p) => p._id !== id));
         alert("✅ Product deleted successfully!");
-      } catch {
+      } catch (err) {
+        console.error("❌ Delete product error:", err);
         alert("❌ Failed to delete product");
       }
     }
@@ -149,7 +153,8 @@ export default function Admin() {
       try {
         const res = await axios.put(`${API_URL}/${id}`, { stock: Number(stock) });
         setProducts(products.map((p) => (p._id === id ? res.data.product || res.data : p)));
-      } catch {
+      } catch (err) {
+        console.error("❌ Update stock error:", err);
         alert("❌ Failed to update stock");
       }
     }
@@ -347,129 +352,137 @@ export default function Admin() {
   }
 
   // =========================================================
-  // 📦 ORDERS PAGE (with Delete + Receipt)
+  // 📦 ORDERS PAGE (with improved receipt handling)
   // =========================================================
-  async function deleteOrder(id) {
-    if (!confirm("⚠️ Delete this order and its receipt permanently?")) return;
-    try {
-      await axios.delete(`${ORDER_URL}/${id}`);
-      alert("✅ Order & receipt deleted successfully!");
-      fetchOrders();
-    } catch {
-      alert("❌ Failed to delete order");
+  // 📦 ORDERS PAGE (Always shows Download icon)
+async function handleReceipt(id, existingUrl) {
+  try {
+    // If URL already available, open directly
+    if (existingUrl) {
+      const fullUrl = existingUrl.startsWith("http")
+        ? existingUrl
+        : `https://saheli-backend.vercel.app${existingUrl}`;
+      window.open(fullUrl, "_blank", "noopener,noreferrer");
+      return;
     }
-  }
 
-  async function handleStatusChange(id, status) {
-    try {
-      await axios.put(`${ORDER_URL}/${id}`, { orderStatus: status });
+    // Otherwise, ask backend to generate and return url
+    const res = await axios.get(`${ORDER_URL}/receipt/${id}`);
+    const pdfUrl =
+      res.data?.pdfUrl || res.data?.url || res.data?.receipt?.pdfUrl || null;
+
+    if (pdfUrl) {
+      const full = pdfUrl.startsWith("http")
+        ? pdfUrl
+        : `https://saheli-backend.vercel.app${pdfUrl}`;
+      window.open(full, "_blank", "noopener,noreferrer");
       fetchOrders();
-    } catch {
-      alert("❌ Failed to update order status");
-    }
-  }
-
-  async function handleReceipt(id) {
-    try {
-      await axios.get(`${ORDER_URL}/receipt/${id}`);
-      alert("✅ Receipt generated successfully!");
+    } else {
+      alert(
+        "Receipt generation started. Please refresh in a few seconds to download."
+      );
       fetchOrders();
-    } catch {
-      alert("❌ Failed to generate receipt");
     }
+  } catch (err) {
+    console.error("❌ Receipt error:", err);
+    alert(err.response?.data?.message || "❌ Failed to open or generate receipt");
+    fetchOrders();
   }
+}
 
-  function Orders() {
-    return (
-      <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100">
-        <h2 className="text-2xl font-semibold mb-4 text-gray-800 flex items-center gap-2">
-          <FaShoppingCart className="text-blue-600" /> Manage Orders ({orders.length})
-        </h2>
+function Orders() {
+  return (
+    <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100">
+      <h2 className="text-2xl font-semibold mb-4 text-gray-800 flex items-center gap-2">
+        <FaShoppingCart className="text-blue-600" /> Manage Orders ({orders.length})
+      </h2>
 
-        {orders.length === 0 ? (
-          <p className="text-gray-500 text-center">No orders yet.</p>
-        ) : (
-          <div className="overflow-x-auto hide-scrollbar">
-            <table className="w-full text-sm border">
-              <thead className="bg-gray-50 text-gray-700">
-                <tr>
-                  <th className="border p-2">#</th>
-                  <th className="border p-2">Customer</th>
-                  <th className="border p-2">Total</th>
-                  <th className="border p-2">Payment</th>
-                  <th className="border p-2">Status</th>
-                  <th className="border p-2">Date</th>
-                  <th className="border p-2">Receipt</th>
-                  <th className="border p-2">Delete</th>
+      {orders.length === 0 ? (
+        <p className="text-gray-500 text-center">No orders yet.</p>
+      ) : (
+        <div className="overflow-x-auto hide-scrollbar">
+          <table className="w-full text-sm border">
+            <thead className="bg-gray-50 text-gray-700">
+              <tr>
+                <th className="border p-2">#</th>
+                <th className="border p-2">Customer</th>
+                <th className="border p-2">Total</th>
+                <th className="border p-2">Payment</th>
+                <th className="border p-2">Status</th>
+                <th className="border p-2">Date</th>
+                <th className="border p-2">Receipt</th>
+                <th className="border p-2">Delete</th>
+              </tr>
+            </thead>
+            <tbody>
+              {orders.map((o, i) => (
+                <tr key={o._id} className="border-b text-center hover:bg-gray-50">
+                  <td className="p-2">{i + 1}</td>
+                  <td className="p-2">{o.customer?.name}</td>
+                  <td className="p-2 text-green-600 font-semibold">₹{o.totalPrice}</td>
+                  <td className="p-2">
+                    {o.paymentStatus === "Paid" ? "Online Payment" : o.paymentMethod}
+                  </td>
+                  <td className="p-2">
+                    <select
+                      value={o.orderStatus}
+                      onChange={(e) => handleStatusChange(o._id, e.target.value)}
+                      className="border rounded p-1 text-sm"
+                    >
+                      {[
+                        "Pending",
+                        "Processing",
+                        "Packed",
+                        "Shipped",
+                        "Delivered",
+                        "Cancelled",
+                      ].map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="p-2">{new Date(o.createdAt).toLocaleDateString()}</td>
+
+                  {/* 🟢 Always show Download icon */}
+                  <td className="p-2">
+                    <button
+                      onClick={() =>
+                        handleReceipt(o._id, o.receipt?.pdfUrl || null)
+                      }
+                      className="text-blue-600 hover:text-blue-800 flex items-center justify-center mx-auto"
+                    >
+                      <FaDownload />
+                    </button>
+                  </td>
+
+                  <td className="p-2">
+                    <button
+                      onClick={() => deleteOrder(o._id)}
+                      className="text-red-500 hover:text-red-700"
+                    >
+                      <FaTrashAlt />
+                    </button>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {orders.map((o, i) => (
-                  <tr key={o._id} className="border-b text-center hover:bg-gray-50">
-                    <td className="p-2">{i + 1}</td>
-                    <td className="p-2">{o.customer?.name}</td>
-                    <td className="p-2 text-green-600 font-semibold">₹{o.totalPrice}</td>
-                    <td className="p-2">{o.paymentMethod}</td>
-                    <td className="p-2">
-                      <select
-                        value={o.orderStatus}
-                        onChange={(e) => handleStatusChange(o._id, e.target.value)}
-                        className="border rounded p-1 text-sm"
-                      >
-                        {["Pending", "Processing", "Packed", "Shipped", "Delivered", "Cancelled"].map((s) => (
-                          <option key={s} value={s}>
-                            {s}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="p-2">{new Date(o.createdAt).toLocaleDateString()}</td>
-                    <td className="p-2">
-                      {o.receipt?.pdfUrl ? (
-                        <a
-                          href={`https://saheli-backend.vercel.app{o.receipt.pdfUrl}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-blue-600 hover:text-blue-800"
-                        >
-                          <FaDownload />
-                        </a>
-                      ) : (
-                        <button
-                          onClick={() => handleReceipt(o._id)}
-                          className="text-red-500 hover:text-red-700 flex items-center justify-center mx-auto"
-                        >
-                          <FaFilePdf />
-                          <span className="ml-1 text-xs">Generate</span>
-                        </button>
-                      )}
-                    </td>
-                    <td className="p-2">
-                      <button
-                        onClick={() => deleteOrder(o._id)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        <FaTrashAlt />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    );
-  }
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
 
   // =========================================================
   // 📊 ANALYTICS PAGE
   // =========================================================
   function Analytics() {
-    const totalRevenue = orders.reduce((sum, o) => sum + o.totalPrice, 0);
+    const totalRevenue = orders.reduce((sum, o) => sum + (o.totalPrice || 0), 0);
     const totalDelivered = orders.filter((o) => o.orderStatus === "Delivered").length;
     const totalPending = orders.filter((o) => o.orderStatus === "Pending").length;
-    const lowStock = products.filter((p) => p.stock < 5);
+    const lowStock = products.filter((p) => (p.stock || 0) < 5);
 
     return (
       <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100">

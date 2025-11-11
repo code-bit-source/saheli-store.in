@@ -1,6 +1,6 @@
 // ==========================
 // File: components/Cart.jsx
-// Saheli Store – Fully Fixed Cart + Dynamic API + WhatsApp Integration
+// Saheli Store – Full Working Checkout + WhatsApp Redirect + Clean Code
 // ==========================
 
 import { useEffect, useState, useRef, useCallback } from "react";
@@ -21,7 +21,7 @@ const BASE_URL = "https://saheli-backend.vercel.app";
 const PRODUCT_API = `${BASE_URL}/api/products`;
 const ORDER_API = `${BASE_URL}/api/orders`;
 
-// 🧩 Utility: Safe Cart Read/Write
+// 🧩 Local Storage Helpers
 const readCart = () => {
   try {
     return JSON.parse(localStorage.getItem(CART_KEY)) || [];
@@ -31,49 +31,15 @@ const readCart = () => {
 };
 const saveCart = (cart) => localStorage.setItem(CART_KEY, JSON.stringify(cart));
 
-// ✅ Normalize cart for backend order format
+// ✅ Normalize Cart for Backend
 const normalizeCart = (cart) =>
   cart.map((item) => ({
     productId: item._id || null,
     title: item.title || item.name || "Unnamed Product",
-    name: item.name || item.title || "Unnamed Product",
     price: Number(item.price) || 0,
     qty: Number(item.qty) || 1,
     image: item.image || "",
   }));
-
-// ✅ Detect Mobile Device
-const isMobile = () =>
-  /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(
-    navigator.userAgent
-  );
-
-// ✅ WhatsApp Message Builder
-const buildWhatsAppUrl = (order, receiptUrl = "") => {
-  const message = `
-🧾 *New Order Received*
------------------------------------
-👤 *Customer:* ${order.customer.name}
-📞 *Phone:* ${order.customer.phone}
-🏠 *Address:* ${order.customer.line1}, ${order.customer.city}, ${order.customer.state} - ${order.customer.pincode}
-
-📦 *Items:*
-${order.cartItems
-  .map((i) => `• ${i.title || i.name} ×${i.qty} = ₹${i.price * i.qty}`)
-  .join("\n")}
-
-💰 *Total:* ₹${order.totalPrice}
------------------------------------
-${receiptUrl ? `📄 *Receipt:* ${receiptUrl}` : ""}
-Thank you for shopping with *Saheli Store*!`;
-
-  // ✅ Use different links for mobile/desktop
-  const baseUrl = isMobile()
-    ? "https://wa.me/919315868930"
-    : "https://web.whatsapp.com/send?phone=919315868930";
-
-  return `${baseUrl}&text=${encodeURIComponent(message)}`;
-};
 
 export default function Cart() {
   const [cart, setCart] = useState(readCart());
@@ -91,7 +57,7 @@ export default function Cart() {
   const navigate = useNavigate();
   const cartRef = useRef(null);
 
-  // 🎬 Animation (GSAP)
+  // 🎬 Animation
   useEffect(() => {
     gsap.fromTo(
       cartRef.current,
@@ -100,23 +66,23 @@ export default function Cart() {
     );
   }, []);
 
-  // 🔹 Fetch all products (for recommendations)
+  // 🔹 Fetch products for recommendations
   useEffect(() => {
     let mounted = true;
     axios
       .get(PRODUCT_API)
-      .then((res) =>
-        mounted &&
-        setProducts(res.data.products || res.data.data || res.data || [])
-      )
-      .catch((err) => console.error("❌ Product fetch error:", err));
+      .then((res) => {
+        if (mounted)
+          setProducts(res.data.products || res.data.data || res.data || []);
+      })
+      .catch(() => {});
     return () => (mounted = false);
   }, []);
 
   const total = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
   const recommended = products.filter((p) => p.recommended);
 
-  // 🔹 Cart Item Update
+  // 🔹 Update Quantity
   const updateQty = useCallback(
     (item, delta) => {
       const updated = cart.map((c) =>
@@ -128,6 +94,7 @@ export default function Cart() {
     [cart]
   );
 
+  // 🔹 Remove Item
   const removeItem = useCallback(
     (id) => {
       const updated = cart.filter((c) => c._id !== id);
@@ -137,17 +104,16 @@ export default function Cart() {
     [cart]
   );
 
+  // 🔹 Add Recommended Product
   const addToCart = useCallback(
     (p) => {
       const product = {
         _id: p._id || p.id || Date.now(),
         title: p.title || "Unnamed Product",
-        name: p.name || p.title || "Unnamed Product",
         price: Number(p.price) || 0,
         image: p.image || "",
         qty: 1,
       };
-
       const exist = cart.find((c) => c._id === product._id);
       const updated = exist
         ? cart.map((c) =>
@@ -160,7 +126,7 @@ export default function Cart() {
     [cart]
   );
 
-  // ✅ Fixed WhatsApp Redirect Version
+  // ✅ Checkout (Auto WhatsApp + Safe Receipt Timeout)
   const handleCheckout = async (e) => {
     e.preventDefault();
     if (!cart.length) return alert("🛒 Your cart is empty!");
@@ -170,7 +136,6 @@ export default function Cart() {
     try {
       setLoading(true);
 
-      // 1️⃣ Normalize Cart
       const normalizedCart = normalizeCart(cart);
       const order = {
         customer: address,
@@ -180,39 +145,54 @@ export default function Cart() {
         orderStatus: "Pending",
       };
 
-      // 2️⃣ Create Order
+      // ✅ Create order
       const res = await axios.post(ORDER_API, order);
-      const orderId = res.data?.order?._id || res.data?._id;
-      if (!orderId) throw new Error("❌ Failed to create order");
+      const orderId =
+        res.data?.order?._id || res.data?._id || res.data?.data?._id;
+      if (!orderId) throw new Error("Order ID missing from backend");
 
-      // 3️⃣ Try fetching receipt (retry 5 times)
+      // ✅ Try fetching receipt (skip if backend slow)
       let receiptUrl = "";
-      for (let i = 0; i < 5; i++) {
-        try {
-          const receiptRes = await axios.get(`${ORDER_API}/receipt/${orderId}`);
-          if (receiptRes.data?.pdfUrl) {
-            receiptUrl = `${BASE_URL}${receiptRes.data.pdfUrl}`;
-            break;
-          }
-        } catch {
-          await new Promise((r) => setTimeout(r, 2000));
-        }
+      try {
+        const receiptRes = await axios.get(`${ORDER_API}/receipt/${orderId}`, {
+          timeout: 4000,
+        });
+        if (receiptRes.data?.pdfUrl)
+          receiptUrl = receiptRes.data.pdfUrl.startsWith("http")
+            ? receiptRes.data.pdfUrl
+            : `${BASE_URL}${receiptRes.data.pdfUrl}`;
+      } catch {
+        // skip
       }
 
-      // 4️⃣ Build WhatsApp URL
-      const waUrl = buildWhatsAppUrl(order, receiptUrl);
+      // ✅ WhatsApp Message
+      const message = `
+🧾 *New Order Received*
+-----------------------------------
+👤 *Customer:* ${order.customer.name}
+📞 *Phone:* ${order.customer.phone}
+🏠 *Address:* ${order.customer.line1}, ${order.customer.city}, ${order.customer.state} - ${order.customer.pincode}
 
-      // ✅ Safe Redirect (no popup block)
-      alert("✅ Order placed successfully! Redirecting to WhatsApp...");
-      setTimeout(() => {
-        window.location.href = waUrl; // open directly (works on all devices)
-      }, 800);
+📦 *Items:*
+${order.cartItems
+  .map((i) => `• ${i.title} ×${i.qty} = ₹${i.price * i.qty}`)
+  .join("\n")}
 
-      // 5️⃣ Cleanup
+💰 *Total:* ₹${order.totalPrice}
+-----------------------------------
+${receiptUrl ? `📄 *Receipt:* ${receiptUrl}` : ""}
+Thank you for shopping with *Saheli Store*!`;
+
+      // ✅ WhatsApp Redirect (Works in all browsers)
+      const phoneNumber = "919315868930";
+      const encoded = encodeURIComponent(message);
+      const waUrl = `https://wa.me/${phoneNumber}?text=${encoded}`;
+      window.location.href = waUrl; // ensure redirect (instead of open in new tab)
+
+      // ✅ Clear Cart
       localStorage.removeItem(CART_KEY);
       setCart([]);
-    } catch (err) {
-      console.error("❌ Order error:", err.response?.data || err.message);
+    } catch {
       alert("❌ Failed to place order. Please try again.");
     } finally {
       setLoading(false);
@@ -298,7 +278,7 @@ export default function Cart() {
           )}
         </div>
 
-        {/* ✅ CHECKOUT */}
+        {/* ✅ CHECKOUT FORM */}
         <aside className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100">
           <h3 className="font-semibold text-xl mb-4 text-gray-800 flex items-center gap-2">
             <FaCheckCircle className="text-green-500" /> Checkout Details
@@ -309,9 +289,7 @@ export default function Cart() {
               type="text"
               placeholder="Full Name"
               value={address.name}
-              onChange={(e) =>
-                setAddress({ ...address, name: e.target.value })
-              }
+              onChange={(e) => setAddress({ ...address, name: e.target.value })}
               className="w-full border p-2.5 rounded-lg"
               required
             />
@@ -340,9 +318,7 @@ export default function Cart() {
                 type="text"
                 placeholder="City"
                 value={address.city}
-                onChange={(e) =>
-                  setAddress({ ...address, city: e.target.value })
-                }
+                onChange={(e) => setAddress({ ...address, city: e.target.value })}
                 className="w-1/2 border p-2.5 rounded-lg"
               />
               <input
@@ -378,7 +354,7 @@ export default function Cart() {
         </aside>
       </div>
 
-      {/* 🔥 Recommended Section */}
+      {/* 🔥 Recommended Products */}
       {recommended.length > 0 && (
         <div className="mt-10 bg-white p-6 rounded-2xl shadow-lg border border-gray-100">
           <h3 className="text-xl font-semibold mb-4 text-gray-800">
