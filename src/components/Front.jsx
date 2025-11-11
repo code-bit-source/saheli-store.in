@@ -1,6 +1,6 @@
 // ==========================
 // File: components/Front.jsx
-// Saheli Products – Scroll Fix + Mobile Responsive Cards
+// Saheli Products – Scroll Fix + Dynamic Backend + Mobile Responsive Cards
 // ==========================
 import { useEffect, useMemo, useState, useRef } from "react";
 import axios from "axios";
@@ -15,9 +15,18 @@ import {
 import { MdOutlineShoppingCart } from "react-icons/md";
 import { useNavigate } from "react-router-dom";
 
+// ==========================
+// 🔹 Config
+// ==========================
 const CART_KEY = "ecom_cart";
-const API_URL = "https://saheli-backend.vercel.app/api/products";
 
+// ✅ Dynamic Backend API from .env (VITE_API_URL)
+const BASE_URL = import.meta.env.VITE_API_URL?.trim().replace(/\/$/, "") || "";
+const API_URL = `${BASE_URL}/api/products`;
+
+// ==========================
+// 🔹 Local Storage Helpers
+// ==========================
 function readCart() {
   try {
     return JSON.parse(localStorage.getItem(CART_KEY) || "[]");
@@ -30,6 +39,9 @@ function saveCart(cart) {
   window.dispatchEvent(new Event("storage"));
 }
 
+// ==========================
+// 🔹 Main Component
+// ==========================
 export default function Front() {
   const [products, setProducts] = useState([]);
   const [cart, setCart] = useState(readCart());
@@ -41,11 +53,14 @@ export default function Front() {
   const cardsRef = useRef([]);
   const navigate = useNavigate();
 
+  // ==========================
+  // 🔹 Fetch Products from Backend
+  // ==========================
   useEffect(() => {
     async function fetchProducts() {
       try {
         const res = await axios.get(API_URL);
-        setProducts(res.data.products || res.data);
+        setProducts(res.data.products || res.data || []);
       } catch (err) {
         console.error("❌ Error fetching products:", err);
       }
@@ -53,26 +68,29 @@ export default function Front() {
     fetchProducts();
   }, []);
 
-useEffect(() => {
-  // Filter only valid DOM nodes (avoid null/undefined)
-  const validCards = cardsRef.current.filter((el) => el);
+  // ==========================
+  // 🔹 GSAP Animation on Load
+  // ==========================
+  useEffect(() => {
+    const validCards = cardsRef.current.filter((el) => el);
+    if (validCards.length > 0) {
+      gsap.fromTo(
+        validCards,
+        { opacity: 0, y: 40 },
+        {
+          opacity: 1,
+          y: 0,
+          stagger: 0.1,
+          duration: 0.5,
+          ease: "power2.out",
+        }
+      );
+    }
+  }, [products]);
 
-  if (validCards.length > 0) {
-    gsap.fromTo(
-      validCards,
-      { opacity: 0, y: 40 },
-      {
-        opacity: 1,
-        y: 0,
-        stagger: 0.1,
-        duration: 0.5,
-        ease: "power2.out",
-      }
-    );
-  }
-}, [products]);
-
-
+  // ==========================
+  // 🔹 Filters + Sorting
+  // ==========================
   const categories = useMemo(
     () => ["All", ...new Set(products.map((p) => p.category || "Uncategorized"))],
     [products]
@@ -94,10 +112,16 @@ useEffect(() => {
     return res;
   }, [products, query, category, sort]);
 
+  // ==========================
+  // 🔹 Recommended / Best Sellers
+  // ==========================
   const randomize = (arr) => arr.sort(() => 0.5 - Math.random()).slice(0, 3);
   const recommended = randomize(products.filter((p) => p.recommended));
   const bestSellers = randomize(products.filter((p) => p.bestSeller));
 
+  // ==========================
+  // 🔹 Cart System
+  // ==========================
   function addToCart(product) {
     if (product.stock <= 0) return;
     const currentCart = readCart();
@@ -115,6 +139,9 @@ useEffect(() => {
 
   const cartCount = cart.reduce((sum, item) => sum + item.qty, 0);
 
+  // ==========================
+  // 🔹 JSX UI
+  // ==========================
   return (
     <>
       <div
@@ -124,7 +151,7 @@ useEffect(() => {
         }}
       >
         <div className="min-h-screen w-full bg-white/55 backdrop-blur-[1px]">
-          {/* Navbar */}
+          {/* 🔹 Navbar */}
           <header className="sticky top-0 z-50 bg-white shadow-md w-full">
             <div className="flex justify-between items-center px-6 md:px-10 py-3">
               <div
@@ -186,7 +213,7 @@ useEffect(() => {
             )}
           </header>
 
-          {/* Filters */}
+          {/* 🔹 Filters */}
           <div className="w-full px-6 mt-4 flex flex-wrap justify-between items-center gap-3">
             <div className="flex flex-wrap gap-2">
               <select
@@ -212,7 +239,7 @@ useEffect(() => {
             </div>
           </div>
 
-          {/* Products Section */}
+          {/* 🔹 Products Section */}
           <div className="w-full grid grid-cols-1 lg:grid-cols-4 gap-6 px-4 sm:px-6 py-8">
             <div className="lg:col-span-3">
               <h2 className="text-lg sm:text-2xl font-bold mb-4 text-gray-800">
@@ -238,7 +265,7 @@ useEffect(() => {
               </div>
             </div>
 
-            {/* Sidebar */}
+            {/* 🔹 Sidebar */}
             <aside className="space-y-8 mt-6 lg:mt-0">
               <SidebarSection
                 title="Recommended"
@@ -255,7 +282,7 @@ useEffect(() => {
             </aside>
           </div>
 
-          {/* Category Sections */}
+          {/* 🔹 Category Sections */}
           <div className="w-full mt-10 px-4 sm:px-6 space-y-10">
             {categories
               .filter((c) => c !== "All")
@@ -282,7 +309,7 @@ useEffect(() => {
               })}
           </div>
 
-          {/* Toast */}
+          {/* 🔹 Toast Notification */}
           {showToast && (
             <div className="fixed top-5 right-5 bg-green-500 text-white flex items-center gap-2 px-4 py-2 rounded-full shadow-lg animate-bounce z-50">
               <FaCheckCircle /> Added to Cart
@@ -295,11 +322,10 @@ useEffect(() => {
 }
 
 // ==========================
-// 🔹 Product Card (Mobile Fixed)
+// 🔹 Product Card Component
 // ==========================
 function ProductCard({ product, index, cardsRef, addToCart }) {
   const navigate = useNavigate();
-
   return (
     <div
       key={product._id}
@@ -310,11 +336,6 @@ function ProductCard({ product, index, cardsRef, addToCart }) {
         window.scrollTo({ top: 0, behavior: "smooth" });
       }}
     >
-      {product.stock <= 0 && (
-        <div className="absolute inset-0 flex items-center justify-center  text-white font-semibold text-sm">
-          
-        </div>
-      )}
       <div className="flex justify-center items-center bg-gray-50 h-[220px] sm:h-[260px] overflow-hidden">
         <img
           src={product.image}

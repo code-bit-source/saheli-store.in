@@ -1,13 +1,16 @@
 // ==========================
 // File: pages/ProductView.jsx
-// Product Detail Page (Flipkart-style Desktop + Responsive Mobile)
+// Product Detail Page (Flipkart-style + Dynamic Backend + Responsive)
 // ==========================
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { FaArrowLeft, FaCheckCircle } from "react-icons/fa";
 
-const API_URL = "https://saheli-backend.vercel.app/api/products";
+// ✅ Dynamic API URL
+const BASE_URL = import.meta.env.VITE_API_URL?.trim().replace(/\/$/, "") || "";
+const API_URL = `${BASE_URL}/api/products`;
+
 const CART_KEY = "ecom_cart";
 
 // 🔹 Read Cart from LocalStorage
@@ -32,7 +35,7 @@ export default function ProductView() {
   const [loading, setLoading] = useState(true);
   const [showToast, setShowToast] = useState(false);
 
-  // ✅ Fetch Single Product
+  // ✅ Fetch Single Product from Backend
   useEffect(() => {
     async function fetchProduct() {
       try {
@@ -90,7 +93,7 @@ export default function ProductView() {
       </div>
     );
 
-  // ✅ Product UI
+  // ✅ Product Detail UI
   return (
     <div className="min-h-[600px] bg-gray-100 flex flex-col items-center py-6 sm:py-10 px-3 sm:px-6 relative">
       {/* 🔙 Back Button */}
@@ -117,7 +120,7 @@ export default function ProductView() {
           />
         </div>
 
-        {/* Right: Details */}
+        {/* Right: Product Details */}
         <div className="flex-1 p-6 sm:p-8 flex flex-col justify-between">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">
@@ -148,6 +151,7 @@ export default function ProductView() {
             </div>
           </div>
 
+          {/* Buttons */}
           <div className="mt-8 flex flex-col sm:flex-row gap-4">
             <button
               onClick={() => addToCart(product)}

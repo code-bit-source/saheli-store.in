@@ -11,6 +11,8 @@
       "src": "/(.*)",
       "dest": "/index.html"
     }
-  ]
- 
+  ],
+  "env": {
+    "VITE_API_URL": "https://saheli-backend.vercel.app/api"
+  }
 }

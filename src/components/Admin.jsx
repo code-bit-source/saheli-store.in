@@ -23,8 +23,10 @@ import {
   FaUsers,
 } from "react-icons/fa";
 
-const API_URL = "https://saheli-backend.vercel.app/api/products";
-const ORDER_URL = "https://saheli-backend.vercel.app/api/orders";
+// ✅ Dynamic API URLs from .env (Vercel Ready)
+const BASE_URL = import.meta.env.VITE_API_URL?.trim().replace(/\/$/, "") || "";
+const API_URL = `${BASE_URL}/api/products`;
+const ORDER_URL = `${BASE_URL}/api/orders`;
 const ADMIN_LOGGED = "admin_logged";
 
 export default function Admin() {
@@ -33,7 +35,7 @@ export default function Admin() {
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
 
-  // Fetch data after login
+  // 🔹 Fetch data after login
   useEffect(() => {
     if (isLoggedIn) {
       fetchProducts();
@@ -42,7 +44,7 @@ export default function Admin() {
   }, [isLoggedIn]);
 
   // ==========================
-  // API HANDLERS
+  // 🔹 API HANDLERS
   // ==========================
   async function fetchProducts() {
     try {
@@ -110,7 +112,8 @@ export default function Admin() {
         setProducts([res.data.product || res.data, ...products]);
         resetForm();
         alert("✅ Product added successfully!");
-      } catch {
+      } catch (err) {
+        console.error(err);
         alert("❌ Failed to add product");
       }
     }
@@ -413,14 +416,7 @@ export default function Admin() {
                         onChange={(e) => handleStatusChange(o._id, e.target.value)}
                         className="border rounded p-1 text-sm"
                       >
-                        {[
-                          "Pending",
-                          "Processing",
-                          "Packed",
-                          "Shipped",
-                          "Delivered",
-                          "Cancelled",
-                        ].map((s) => (
+                        {["Pending", "Processing", "Packed", "Shipped", "Delivered", "Cancelled"].map((s) => (
                           <option key={s} value={s}>
                             {s}
                           </option>
@@ -431,7 +427,7 @@ export default function Admin() {
                     <td className="p-2">
                       {o.receipt?.pdfUrl ? (
                         <a
-                          href={`https://saheli-backend.vercel.app${o.receipt.pdfUrl}`}
+                          href={`${BASE_URL}${o.receipt.pdfUrl}`}
                           target="_blank"
                           rel="noreferrer"
                           className="text-blue-600 hover:text-blue-800"
@@ -443,7 +439,7 @@ export default function Admin() {
                           onClick={() => handleReceipt(o._id)}
                           className="text-red-500 hover:text-red-700 flex items-center justify-center mx-auto"
                         >
-                          <FaFilePdf />{" "}
+                          <FaFilePdf />
                           <span className="ml-1 text-xs">Generate</span>
                         </button>
                       )}
@@ -467,7 +463,7 @@ export default function Admin() {
   }
 
   // =========================================================
-  // 📊 ANALYTICS PAGE (Professional Style)
+  // 📊 ANALYTICS PAGE
   // =========================================================
   function Analytics() {
     const totalRevenue = orders.reduce((sum, o) => sum + o.totalPrice, 0);
@@ -499,7 +495,7 @@ export default function Admin() {
           />
         </div>
 
-        {/* Pending and Low Stock Alerts */}
+        {/* Pending & Low Stock */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="bg-gray-50 border p-5 rounded-xl">
             <h3 className="font-semibold text-lg mb-3 text-gray-700">
@@ -627,7 +623,7 @@ function AdminLogin({ onLogin }) {
   function handleLogin(e) {
     e.preventDefault();
     if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-      localStorage.setItem(ADMIN_LOGGED, "true");
+      localStorage.setItem("admin_logged", "true");
       onLogin();
     } else setError("❌ Invalid email or password");
   }
