@@ -1,6 +1,6 @@
 // ==========================
 // File: components/Cart.jsx
-// Saheli Store – Fully Fixed Cart + Dynamic API + WhatsApp Integration
+// Saheli Store – Fully Fixed Cart + Dynamic API + WhatsApp Integration (Updated)
 // ==========================
 
 import { useEffect, useState, useRef, useCallback } from "react";
@@ -18,13 +18,17 @@ const CART_KEY = "ecom_cart";
 
 // ✅ Dynamically read backend URL from environment
 const BASE_URL = import.meta.env.VITE_API_URL?.trim().replace(/\/$/, "") || "";
+if (!BASE_URL)
+  console.warn("⚠️ Missing VITE_API_URL in .env file — API calls may fail.");
+
 const PRODUCT_API = `${BASE_URL}/api/products`;
 const ORDER_API = `${BASE_URL}/api/orders`;
 
 // 🧩 Utility: Safe Cart Read/Write
 const readCart = () => {
   try {
-    return JSON.parse(localStorage.getItem(CART_KEY)) || [];
+    const data = JSON.parse(localStorage.getItem(CART_KEY));
+    return Array.isArray(data) ? data : [];
   } catch {
     return [];
   }
@@ -60,11 +64,12 @@ export default function Cart() {
 
   // 🎬 Animation (GSAP)
   useEffect(() => {
-    gsap.fromTo(
-      cartRef.current,
-      { opacity: 0, y: 20 },
-      { opacity: 1, y: 0, duration: 0.5 }
-    );
+    if (cartRef.current)
+      gsap.fromTo(
+        cartRef.current,
+        { opacity: 0, y: 20 },
+        { opacity: 1, y: 0, duration: 0.5 }
+      );
   }, []);
 
   // 🔹 Fetch all products (for recommendations)
@@ -72,13 +77,21 @@ export default function Cart() {
     let mounted = true;
     axios
       .get(PRODUCT_API)
-      .then((res) => mounted && setProducts(res.data.products || res.data || []))
+      .then((res) => {
+        let fetched = [];
+        if (Array.isArray(res.data)) fetched = res.data;
+        else if (Array.isArray(res.data.products)) fetched = res.data.products;
+        else if (Array.isArray(res.data.data)) fetched = res.data.data;
+        if (mounted) setProducts(fetched);
+      })
       .catch((err) => console.error("❌ Product fetch error:", err));
     return () => (mounted = false);
   }, []);
 
   const total = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
-  const recommended = products.filter((p) => p.recommended);
+  const recommended = Array.isArray(products)
+    ? products.filter((p) => p.recommended)
+    : [];
 
   // 🔹 Cart Item Update (Quantity + Remove)
   const updateQty = useCallback(
@@ -168,12 +181,12 @@ Thank you for shopping with *Saheli Store*!`;
 
       // 2️⃣ Create Order
       const res = await axios.post(ORDER_API, order);
-      const orderId = res.data?.order?._id;
+      const orderId = res.data?.order?._id || res.data?._id;
       if (!orderId) throw new Error("❌ Failed to create order");
 
-      // 3️⃣ Try fetching receipt
+      // 3️⃣ Fetch Receipt (retry 3 times)
       let receiptUrl = "";
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < 3; i++) {
         try {
           const receiptRes = await axios.get(`${ORDER_API}/receipt/${orderId}`);
           if (receiptRes.data?.pdfUrl) {
@@ -181,11 +194,11 @@ Thank you for shopping with *Saheli Store*!`;
             break;
           }
         } catch {
-          await new Promise((r) => setTimeout(r, 2000));
+          await new Promise((r) => setTimeout(r, 1500));
         }
       }
 
-      // 4️⃣ WhatsApp message
+      // 4️⃣ Open WhatsApp message
       const waUrl = buildWhatsAppUrl(order, receiptUrl);
       window.open(waUrl, "_blank");
 
