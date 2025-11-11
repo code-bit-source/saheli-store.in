@@ -1,6 +1,6 @@
 // ==========================
 // File: components/Front.jsx
-// Saheli Products – Scroll Fix + Dynamic Backend + Mobile Responsive Cards (Fixed)
+// Saheli Products – Scroll Fix + Dynamic Backend + Mobile Responsive Cards
 // ==========================
 import { useEffect, useMemo, useState, useRef } from "react";
 import axios from "axios";
@@ -21,8 +21,8 @@ import { useNavigate } from "react-router-dom";
 const CART_KEY = "ecom_cart";
 
 // ✅ Dynamic Backend API from .env (VITE_API_URL)
-const BASE_URL = import.meta.env.VITE_API_URL?.trim().replace(/\/$/, "") || "";
-const API_URL = `${BASE_URL}/api/products`;
+// const BASE_URL = import.meta.env.VITE_API_URL?.trim().replace(/\/$/, "") || "";
+const API_URL = `https://saheli-backend.vercel.app/api/products`;
 
 // ==========================
 // 🔹 Local Storage Helpers
@@ -43,7 +43,7 @@ function saveCart(cart) {
 // 🔹 Main Component
 // ==========================
 export default function Front() {
-  const [products, setProducts] = useState([]); // ✅ must be array
+  const [products, setProducts] = useState([]);
   const [cart, setCart] = useState(readCart());
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All");
@@ -60,19 +60,9 @@ export default function Front() {
     async function fetchProducts() {
       try {
         const res = await axios.get(API_URL);
-        console.log("✅ Products API response:", res.data);
-
-        // Handle possible structures safely
-        let fetched = [];
-        if (Array.isArray(res.data)) fetched = res.data;
-        else if (Array.isArray(res.data.products)) fetched = res.data.products;
-        else if (res.data?.data && Array.isArray(res.data.data))
-          fetched = res.data.data;
-
-        setProducts(fetched);
+        setProducts(res.data.products || res.data || []);
       } catch (err) {
         console.error("❌ Error fetching products:", err);
-        setProducts([]); // fallback to empty array
       }
     }
     fetchProducts();
@@ -82,7 +72,7 @@ export default function Front() {
   // 🔹 GSAP Animation on Load
   // ==========================
   useEffect(() => {
-    const validCards = cardsRef.current.filter(Boolean);
+    const validCards = cardsRef.current.filter((el) => el);
     if (validCards.length > 0) {
       gsap.fromTo(
         validCards,
@@ -107,7 +97,7 @@ export default function Front() {
   );
 
   const filteredProducts = useMemo(() => {
-    let res = Array.isArray(products) ? [...products] : [];
+    let res = [...products];
     if (query)
       res = res.filter(
         (p) =>
@@ -125,8 +115,7 @@ export default function Front() {
   // ==========================
   // 🔹 Recommended / Best Sellers
   // ==========================
-  const randomize = (arr) =>
-    Array.isArray(arr) ? arr.sort(() => 0.5 - Math.random()).slice(0, 3) : [];
+  const randomize = (arr) => arr.sort(() => 0.5 - Math.random()).slice(0, 3);
   const recommended = randomize(products.filter((p) => p.recommended));
   const bestSellers = randomize(products.filter((p) => p.bestSeller));
 
@@ -258,14 +247,14 @@ export default function Front() {
               </h2>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">
-                {!Array.isArray(filteredProducts) || filteredProducts.length === 0 ? (
+                {filteredProducts.length === 0 ? (
                   <div className="col-span-full bg-white rounded-xl p-6 text-center text-gray-500 shadow-sm border">
                     No products found.
                   </div>
                 ) : (
                   filteredProducts.map((p, index) => (
                     <ProductCard
-                      key={p._id || index}
+                      key={p._id}
                       product={p}
                       index={index}
                       cardsRef={cardsRef}
@@ -293,6 +282,33 @@ export default function Front() {
             </aside>
           </div>
 
+          {/* 🔹 Category Sections */}
+          <div className="w-full mt-10 px-4 sm:px-6 space-y-10">
+            {categories
+              .filter((c) => c !== "All")
+              .map((cat) => {
+                const items = products.filter((p) => p.category === cat);
+                if (items.length === 0) return null;
+                return (
+                  <div key={cat}>
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4">
+                      {cat}
+                    </h2>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-5">
+                      {items.map((p, i) => (
+                        <ProductCard
+                          key={p._id}
+                          product={p}
+                          index={i}
+                          addToCart={addToCart}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+
           {/* 🔹 Toast Notification */}
           {showToast && (
             <div className="fixed top-5 right-5 bg-green-500 text-white flex items-center gap-2 px-4 py-2 rounded-full shadow-lg animate-bounce z-50">
@@ -312,6 +328,7 @@ function ProductCard({ product, index, cardsRef, addToCart }) {
   const navigate = useNavigate();
   return (
     <div
+      key={product._id}
       ref={(el) => cardsRef && (cardsRef.current[index] = el)}
       className="group bg-white rounded-xl shadow-md border border-gray-100 hover:shadow-lg transition-all duration-300 cursor-pointer relative flex flex-col justify-between h-[370px] sm:h-[420px] overflow-hidden"
       onClick={() => {
@@ -373,15 +390,15 @@ function SidebarSection({ title, color, products, badge }) {
       >
         <MdOutlineShoppingCart /> {title}
       </h4>
-      {!Array.isArray(products) || products.length === 0 ? (
+      {products.length === 0 ? (
         <p className="text-center text-gray-500 italic text-sm">
           No products yet ✨
         </p>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-4">
-          {products.map((p, i) => (
+          {products.map((p) => (
             <div
-              key={p._id || i}
+              key={p._id}
               onClick={() => {
                 window.scrollTo({ top: 0, behavior: "smooth" });
                 window.location.href = `/product/${p._id}`;

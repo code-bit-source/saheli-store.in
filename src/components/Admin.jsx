@@ -24,17 +24,13 @@ import {
 } from "react-icons/fa";
 
 // ✅ Dynamic API URLs from .env (Vercel Ready)
-const BASE_URL = import.meta.env.VITE_API_URL?.trim().replace(/\/$/, "") || "";
-if (!BASE_URL) console.warn("⚠️ Missing VITE_API_URL in .env file");
-
-const API_URL = `${BASE_URL}/api/products`;
-const ORDER_URL = `${BASE_URL}/api/orders`;
+// const BASE_URL = import.meta.env.VITE_API_URL?.trim().replace(/\/$/, "") || "";
+const API_URL = `https://saheli-backend.vercel.app/api/products`;
+const ORDER_URL = `https://saheli-backend.vercel.app/api/orders`;
 const ADMIN_LOGGED = "admin_logged";
 
 export default function Admin() {
-  const [isLoggedIn, setIsLoggedIn] = useState(
-    localStorage.getItem(ADMIN_LOGGED) === "true"
-  );
+  const [isLoggedIn, setIsLoggedIn] = useState(localStorage.getItem(ADMIN_LOGGED) === "true");
   const [activePage, setActivePage] = useState("dashboard");
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
@@ -48,35 +44,23 @@ export default function Admin() {
   }, [isLoggedIn]);
 
   // ==========================
-  // 🔹 API HANDLERS (SAFE)
+  // 🔹 API HANDLERS
   // ==========================
   async function fetchProducts() {
     try {
       const res = await axios.get(API_URL);
-      console.log("🧾 Products API:", res.data);
-      let fetched = [];
-      if (Array.isArray(res.data)) fetched = res.data;
-      else if (Array.isArray(res.data.products)) fetched = res.data.products;
-      else if (Array.isArray(res.data.data)) fetched = res.data.data;
-      setProducts(fetched);
+      setProducts(res.data.products || res.data);
     } catch (error) {
       console.error("❌ Error fetching products:", error);
-      setProducts([]);
     }
   }
 
   async function fetchOrders() {
     try {
       const res = await axios.get(ORDER_URL);
-      console.log("📦 Orders API:", res.data);
-      let fetched = [];
-      if (Array.isArray(res.data)) fetched = res.data;
-      else if (Array.isArray(res.data.orders)) fetched = res.data.orders;
-      else if (Array.isArray(res.data.data)) fetched = res.data.data;
-      setOrders(fetched);
+      setOrders(res.data.orders || res.data);
     } catch (error) {
       console.error("❌ Error fetching orders:", error);
-      setOrders([]);
     }
   }
 
@@ -104,11 +88,9 @@ export default function Admin() {
     const [editProduct, setEditProduct] = useState(null);
     const [search, setSearch] = useState("");
 
-    const filtered = Array.isArray(products)
-      ? products.filter((p) =>
-          p.title?.toLowerCase().includes(search.toLowerCase())
-        )
-      : [];
+    const filtered = products.filter((p) =>
+      p.title?.toLowerCase().includes(search.toLowerCase())
+    );
 
     const resetForm = () => {
       setForm({
@@ -127,8 +109,7 @@ export default function Admin() {
       e.preventDefault();
       try {
         const res = await axios.post(API_URL, form);
-        const newProduct = res.data.product || res.data;
-        setProducts([newProduct, ...products]);
+        setProducts([res.data.product || res.data, ...products]);
         resetForm();
         alert("✅ Product added successfully!");
       } catch (err) {
@@ -166,14 +147,8 @@ export default function Admin() {
 
     async function updateStock(id, stock) {
       try {
-        const res = await axios.patch(`${API_URL}/${id}`, {
-          stock: Number(stock),
-        });
-        setProducts(
-          products.map((p) =>
-            p._id === id ? res.data.product || res.data : p
-          )
-        );
+        const res = await axios.put(`${API_URL}/${id}`, { stock: Number(stock) });
+        setProducts(products.map((p) => (p._id === id ? res.data.product || res.data : p)));
       } catch {
         alert("❌ Failed to update stock");
       }
@@ -214,9 +189,7 @@ export default function Admin() {
                     className="w-full h-40 object-cover rounded-lg mb-3"
                   />
                   <div className="flex justify-between items-start">
-                    <h3 className="font-semibold text-gray-800 text-lg">
-                      {p.title}
-                    </h3>
+                    <h3 className="font-semibold text-gray-800 text-lg">{p.title}</h3>
                     <div className="flex gap-3">
                       <button
                         onClick={() => {
@@ -239,12 +212,8 @@ export default function Admin() {
                     {p.description || "No description available."}
                   </p>
                   <div className="flex justify-between items-center">
-                    <span className="text-blue-600 font-bold">
-                      ₹{p.price}
-                    </span>
-                    <span className="text-xs text-gray-500">
-                      {p.category}
-                    </span>
+                    <span className="text-blue-600 font-bold">₹{p.price}</span>
+                    <span className="text-xs text-gray-500">{p.category}</span>
                   </div>
                   <div className="mt-3 text-sm">
                     <label className="text-gray-600 font-medium">Stock:</label>
@@ -267,10 +236,7 @@ export default function Admin() {
             {editProduct ? "✏️ Edit Product" : "➕ Add Product"}
           </h2>
 
-          <form
-            onSubmit={editProduct ? saveEdit : addProduct}
-            className="space-y-3"
-          >
+          <form onSubmit={editProduct ? saveEdit : addProduct} className="space-y-3">
             <input
               type="text"
               value={form.title}
@@ -307,8 +273,7 @@ export default function Admin() {
                   const file = e.target.files[0];
                   if (file) {
                     const reader = new FileReader();
-                    reader.onloadend = () =>
-                      setForm({ ...form, image: reader.result });
+                    reader.onloadend = () => setForm({ ...form, image: reader.result });
                     reader.readAsDataURL(file);
                   }
                 }}
@@ -341,9 +306,7 @@ export default function Admin() {
             />
             <textarea
               value={form.description}
-              onChange={(e) =>
-                setForm({ ...form, description: e.target.value })
-              }
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
               placeholder="Description"
               className="w-full border p-2 rounded-lg"
             ></textarea>
@@ -353,9 +316,7 @@ export default function Admin() {
                 <input
                   type="checkbox"
                   checked={form.recommended}
-                  onChange={(e) =>
-                    setForm({ ...form, recommended: e.target.checked })
-                  }
+                  onChange={(e) => setForm({ ...form, recommended: e.target.checked })}
                 />
                 Recommended
               </label>
@@ -363,9 +324,7 @@ export default function Admin() {
                 <input
                   type="checkbox"
                   checked={form.bestSeller}
-                  onChange={(e) =>
-                    setForm({ ...form, bestSeller: e.target.checked })
-                  }
+                  onChange={(e) => setForm({ ...form, bestSeller: e.target.checked })}
                 />
                 Bestseller
               </label>
@@ -388,7 +347,7 @@ export default function Admin() {
   }
 
   // =========================================================
-  // 📦 ORDERS PAGE + ANALYTICS (same as before, no logic error)
+  // 📦 ORDERS PAGE (with Delete + Receipt)
   // =========================================================
   async function deleteOrder(id) {
     if (!confirm("⚠️ Delete this order and its receipt permanently?")) return;
@@ -457,27 +416,18 @@ export default function Admin() {
                         onChange={(e) => handleStatusChange(o._id, e.target.value)}
                         className="border rounded p-1 text-sm"
                       >
-                        {[
-                          "Pending",
-                          "Processing",
-                          "Packed",
-                          "Shipped",
-                          "Delivered",
-                          "Cancelled",
-                        ].map((s) => (
+                        {["Pending", "Processing", "Packed", "Shipped", "Delivered", "Cancelled"].map((s) => (
                           <option key={s} value={s}>
                             {s}
                           </option>
                         ))}
                       </select>
                     </td>
-                    <td className="p-2">
-                      {new Date(o.createdAt).toLocaleDateString()}
-                    </td>
+                    <td className="p-2">{new Date(o.createdAt).toLocaleDateString()}</td>
                     <td className="p-2">
                       {o.receipt?.pdfUrl ? (
                         <a
-                          href={`${BASE_URL}${o.receipt.pdfUrl}`}
+                          href={`https://saheli-backend.vercel.app{o.receipt.pdfUrl}`}
                           target="_blank"
                           rel="noreferrer"
                           className="text-blue-600 hover:text-blue-800"
@@ -517,12 +467,8 @@ export default function Admin() {
   // =========================================================
   function Analytics() {
     const totalRevenue = orders.reduce((sum, o) => sum + o.totalPrice, 0);
-    const totalDelivered = orders.filter(
-      (o) => o.orderStatus === "Delivered"
-    ).length;
-    const totalPending = orders.filter(
-      (o) => o.orderStatus === "Pending"
-    ).length;
+    const totalDelivered = orders.filter((o) => o.orderStatus === "Delivered").length;
+    const totalPending = orders.filter((o) => o.orderStatus === "Pending").length;
     const lowStock = products.filter((p) => p.stock < 5);
 
     return (

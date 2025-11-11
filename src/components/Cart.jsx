@@ -1,6 +1,6 @@
 // ==========================
 // File: components/Cart.jsx
-// Saheli Store – Fully Fixed Cart + Dynamic API + WhatsApp Integration (Updated)
+// Saheli Store – Fully Fixed Cart + Dynamic API + WhatsApp Integration
 // ==========================
 
 import { useEffect, useState, useRef, useCallback } from "react";
@@ -16,26 +16,22 @@ import { useNavigate } from "react-router-dom";
 
 const CART_KEY = "ecom_cart";
 
-// ✅ Dynamically read backend URL from environment
-const BASE_URL = import.meta.env.VITE_API_URL?.trim().replace(/\/$/, "") || "";
-if (!BASE_URL)
-  console.warn("⚠️ Missing VITE_API_URL in .env file — API calls may fail.");
-
+// ✅ Backend URLs
+const BASE_URL = "https://saheli-backend.vercel.app";
 const PRODUCT_API = `${BASE_URL}/api/products`;
 const ORDER_API = `${BASE_URL}/api/orders`;
 
 // 🧩 Utility: Safe Cart Read/Write
 const readCart = () => {
   try {
-    const data = JSON.parse(localStorage.getItem(CART_KEY));
-    return Array.isArray(data) ? data : [];
+    return JSON.parse(localStorage.getItem(CART_KEY)) || [];
   } catch {
     return [];
   }
 };
 const saveCart = (cart) => localStorage.setItem(CART_KEY, JSON.stringify(cart));
 
-// ✅ Normalize product data for backend order format
+// ✅ Normalize cart for backend order format
 const normalizeCart = (cart) =>
   cart.map((item) => ({
     productId: item._id || null,
@@ -45,6 +41,39 @@ const normalizeCart = (cart) =>
     qty: Number(item.qty) || 1,
     image: item.image || "",
   }));
+
+// ✅ Detect Mobile Device
+const isMobile = () =>
+  /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(
+    navigator.userAgent
+  );
+
+// ✅ WhatsApp Message Builder
+const buildWhatsAppUrl = (order, receiptUrl = "") => {
+  const message = `
+🧾 *New Order Received*
+-----------------------------------
+👤 *Customer:* ${order.customer.name}
+📞 *Phone:* ${order.customer.phone}
+🏠 *Address:* ${order.customer.line1}, ${order.customer.city}, ${order.customer.state} - ${order.customer.pincode}
+
+📦 *Items:*
+${order.cartItems
+  .map((i) => `• ${i.title || i.name} ×${i.qty} = ₹${i.price * i.qty}`)
+  .join("\n")}
+
+💰 *Total:* ₹${order.totalPrice}
+-----------------------------------
+${receiptUrl ? `📄 *Receipt:* ${receiptUrl}` : ""}
+Thank you for shopping with *Saheli Store*!`;
+
+  // ✅ Use different links for mobile/desktop
+  const baseUrl = isMobile()
+    ? "https://wa.me/919315868930"
+    : "https://web.whatsapp.com/send?phone=919315868930";
+
+  return `${baseUrl}&text=${encodeURIComponent(message)}`;
+};
 
 export default function Cart() {
   const [cart, setCart] = useState(readCart());
@@ -64,12 +93,11 @@ export default function Cart() {
 
   // 🎬 Animation (GSAP)
   useEffect(() => {
-    if (cartRef.current)
-      gsap.fromTo(
-        cartRef.current,
-        { opacity: 0, y: 20 },
-        { opacity: 1, y: 0, duration: 0.5 }
-      );
+    gsap.fromTo(
+      cartRef.current,
+      { opacity: 0, y: 20 },
+      { opacity: 1, y: 0, duration: 0.5 }
+    );
   }, []);
 
   // 🔹 Fetch all products (for recommendations)
@@ -77,23 +105,18 @@ export default function Cart() {
     let mounted = true;
     axios
       .get(PRODUCT_API)
-      .then((res) => {
-        let fetched = [];
-        if (Array.isArray(res.data)) fetched = res.data;
-        else if (Array.isArray(res.data.products)) fetched = res.data.products;
-        else if (Array.isArray(res.data.data)) fetched = res.data.data;
-        if (mounted) setProducts(fetched);
-      })
+      .then((res) =>
+        mounted &&
+        setProducts(res.data.products || res.data.data || res.data || [])
+      )
       .catch((err) => console.error("❌ Product fetch error:", err));
     return () => (mounted = false);
   }, []);
 
   const total = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
-  const recommended = Array.isArray(products)
-    ? products.filter((p) => p.recommended)
-    : [];
+  const recommended = products.filter((p) => p.recommended);
 
-  // 🔹 Cart Item Update (Quantity + Remove)
+  // 🔹 Cart Item Update
   const updateQty = useCallback(
     (item, delta) => {
       const updated = cart.map((c) =>
@@ -137,29 +160,7 @@ export default function Cart() {
     [cart]
   );
 
-  // 🟢 WhatsApp Message Builder
-  const buildWhatsAppUrl = (order, receiptUrl = "") => {
-    const message = `
-🧾 *New Order Received*
------------------------------------
-👤 *Customer:* ${order.customer.name}
-📞 *Phone:* ${order.customer.phone}
-🏠 *Address:* ${order.customer.line1}, ${order.customer.city}, ${order.customer.state} - ${order.customer.pincode}
-
-📦 *Items:*
-${order.cartItems
-  .map((i) => `• ${i.title || i.name} ×${i.qty} = ₹${i.price * i.qty}`)
-  .join("\n")}
-
-💰 *Total:* ₹${order.totalPrice}
------------------------------------
-${receiptUrl ? `📄 *Receipt:* ${receiptUrl}` : ""}
-Thank you for shopping with *Saheli Store*!`;
-
-    return `https://wa.me/919315868930?text=${encodeURIComponent(message)}`;
-  };
-
-  // 🧾 Checkout Process
+  // ✅ Fixed WhatsApp Redirect Version
   const handleCheckout = async (e) => {
     e.preventDefault();
     if (!cart.length) return alert("🛒 Your cart is empty!");
@@ -184,9 +185,9 @@ Thank you for shopping with *Saheli Store*!`;
       const orderId = res.data?.order?._id || res.data?._id;
       if (!orderId) throw new Error("❌ Failed to create order");
 
-      // 3️⃣ Fetch Receipt (retry 3 times)
+      // 3️⃣ Try fetching receipt (retry 5 times)
       let receiptUrl = "";
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < 5; i++) {
         try {
           const receiptRes = await axios.get(`${ORDER_API}/receipt/${orderId}`);
           if (receiptRes.data?.pdfUrl) {
@@ -194,18 +195,22 @@ Thank you for shopping with *Saheli Store*!`;
             break;
           }
         } catch {
-          await new Promise((r) => setTimeout(r, 1500));
+          await new Promise((r) => setTimeout(r, 2000));
         }
       }
 
-      // 4️⃣ Open WhatsApp message
+      // 4️⃣ Build WhatsApp URL
       const waUrl = buildWhatsAppUrl(order, receiptUrl);
-      window.open(waUrl, "_blank");
+
+      // ✅ Safe Redirect (no popup block)
+      alert("✅ Order placed successfully! Redirecting to WhatsApp...");
+      setTimeout(() => {
+        window.location.href = waUrl; // open directly (works on all devices)
+      }, 800);
 
       // 5️⃣ Cleanup
       localStorage.removeItem(CART_KEY);
       setCart([]);
-      alert("✅ Order placed successfully!");
     } catch (err) {
       console.error("❌ Order error:", err.response?.data || err.message);
       alert("❌ Failed to place order. Please try again.");
