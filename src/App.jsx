@@ -1,70 +1,121 @@
 // ==========================
 // File: App.jsx
-// Saheli Products – Router Setup + Footer + Clean Entry
+// Saheli Products – Full Production Setup + React Icons Footer
 // ==========================
+
 import { Routes, Route, Link, useLocation } from "react-router-dom";
+
+// Components
 import Front from "./components/Front.jsx";
 import Cart from "./components/Cart.jsx";
 import Admin from "./components/Admin.jsx";
 import ProductView from "./components/ProductView.jsx";
 
+import {
+  FaFacebookF,
+  FaInstagram,
+  FaTwitter,
+  FaEnvelope,
+  FaPhoneAlt,
+  FaHome,
+  FaShoppingCart,
+} from "react-icons/fa";
+
+import Privacy from "./components/pages/Privacy.jsx";
+import Return from "./components/pages/Return.jsx";
+import Shipping from "./components/pages/Shipping.jsx";
+import Terms from "./components/pages/Terms.jsx";
+
 function Navbar() {
-  const location = useLocation();
-
-  // (Optional) Active link helper
-  const linkClass = (path) =>
-    `flex items-center gap-2 px-4 py-2 rounded-lg transition ${
-      location.pathname === path
-        ? "bg-blue-600 text-white shadow"
-        : "text-gray-700 hover:bg-gray-100"
-    }`;
-
-  return (
-    <nav className="hidden"></nav> // Placeholder (you can design later)
-  );
+  return <nav className="hidden"></nav>;
 }
 
+// ==========================
+// ⚡ Footer With Policy Links
+// ==========================
 function Footer() {
   return (
-    <footer className="bg-gray-900 text-gray-300 mt-8">
-      <div className="max-w-7xl mx-auto px-6 py-8 grid grid-cols-1 sm:grid-cols-3 gap-6">
-        {/* Left */}
+    <footer className="bg-gray-900 text-gray-300 mt-10 border-t border-gray-700">
+      <div className="max-w-7xl mx-auto px-6 py-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
+        
+        {/* Brand */}
         <div>
-          <h3 className="text-lg font-semibold text-white mb-2">Saheli Products</h3>
-          <p className="text-sm">
-            A simple and smart eCommerce system made for managing and browsing
-            products easily — built by{" "}
-            <span className="font-medium text-blue-400">Amrit Kumar</span>.
+          <h3 className="text-xl font-semibold text-white mb-3">
+            Saheli Products
+          </h3>
+          <p className="text-sm leading-6">
+            India's simple and smart shopping platform delivering a smooth and fast experience.
           </p>
         </div>
 
-        {/* Center */}
+        {/* Quick Links */}
         <div>
-          <h4 className="text-lg font-semibold text-white mb-2">Quick Links</h4>
-          <ul className="space-y-1 text-sm">
-            <li>
-              <Link to="/" className="hover:text-blue-400 transition">
-                🏠 Home
-              </Link>
+          <h4 className="text-lg font-semibold text-white mb-3">Quick Links</h4>
+          <ul className="space-y-2 text-sm">
+
+            <li className="flex items-center gap-2">
+              <FaHome className="text-blue-400" />
+              <Link to="/" className="hover:text-blue-400 transition">Home</Link>
             </li>
-            <li>
-              <Link to="/cart" className="hover:text-blue-400 transition">
-                🛒 Cart
-              </Link>
+
+            <li className="flex items-center gap-2">
+              <FaShoppingCart className="text-blue-400" />
+              <Link to="/cart" className="hover:text-blue-400 transition">Cart</Link>
             </li>
-            <li>
-              <Link to="/admin" className="hover:text-blue-400 transition">
-                ⚙️ Admin Panel
-              </Link>
-            </li>
+
           </ul>
         </div>
 
-        {/* Right */}
+        {/* Policies */}
         <div>
-          <h4 className="text-lg font-semibold text-white mb-2">Contact Us</h4>
-          <p className="text-sm">
-            📧{" "}
+          <h4 className="text-lg font-semibold text-white mb-3">Our Policies</h4>
+          <ul className="space-y-2 text-sm">
+
+            <li>
+              <Link
+                to="/Return-Refund"
+                className="hover:text-blue-400 transition cursor-pointer"
+              >
+                Return Policy
+              </Link>
+            </li>
+
+            <li>
+              <Link
+                to="/Shipping-policy"
+                className="hover:text-blue-400 transition cursor-pointer"
+              >
+                Shipping Policy
+              </Link>
+            </li>
+
+            <li>
+              <Link
+                to="/privacy-policy"
+                className="hover:text-blue-400 transition cursor-pointer"
+              >
+                Privacy Policy
+              </Link>
+            </li>
+
+            <li>
+              <Link
+                to="/terms-and-conditions"
+                className="hover:text-blue-400 transition cursor-pointer"
+              >
+                Terms & Conditions
+              </Link>
+            </li>
+
+          </ul>
+        </div>
+
+        {/* Contact */}
+        <div>
+          <h4 className="text-lg font-semibold text-white mb-3">Contact Us</h4>
+
+          <p className="text-sm flex items-center gap-2">
+            <FaEnvelope className="text-blue-400" />
             <a
               href="mailto:amritmr760@gmail.com"
               className="text-blue-400 hover:underline"
@@ -72,30 +123,56 @@ function Footer() {
               amritmr760@gmail.com
             </a>
           </p>
-          <p className="text-sm mt-1">📞 +91 9315868930</p>
+
+          <p className="text-sm flex items-center gap-2 mt-2">
+            <FaPhoneAlt className="text-blue-400" /> 
+            +91 9315868930
+          </p>
+
+          <div className="flex items-center gap-4 mt-4">
+            <span className="text-gray-400 text-sm">Follow us:</span>
+
+            <div className="flex gap-4 text-xl">
+              <FaFacebookF className="cursor-pointer hover:text-blue-400" />
+              <FaInstagram className="cursor-pointer hover:text-pink-400" />
+              <FaTwitter className="cursor-pointer hover:text-blue-500" />
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Bottom Line */}
-      <div className="bg-gray-800 text-center py-3 text-xs text-gray-400">
-        © {new Date().getFullYear()} Saheli Products. All rights reserved.
+      {/* Bottom */}
+      <div className="bg-gray-800 text-center py-4 text-xs text-gray-400">
+        © {new Date().getFullYear()} Saheli Products — Built by Amrit Kumar.
+        All rights reserved.
       </div>
     </footer>
   );
 }
 
+// ==========================
+// APP – Main Router
+// ==========================
 export default function App() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Navbar />
+
       <main className="flex-1 mx-auto w-full">
         <Routes>
           <Route path="/" element={<Front />} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/product/:id" element={<ProductView />} />
           <Route path="/admin" element={<Admin />} />
+
+          {/* Policy Pages */}
+          <Route path="/privacy-policy" element={<Privacy />} />
+          <Route path="/Return-Refund" element={<Return />} />
+          <Route path="/Shipping-policy" element={<Shipping />} />
+          <Route path="/terms-and-conditions" element={<Terms />} />
         </Routes>
       </main>
+
       <Footer />
     </div>
   );

@@ -14,14 +14,12 @@ import {
 } from "react-icons/fa";
 import { MdOutlineShoppingCart } from "react-icons/md";
 import { useNavigate } from "react-router-dom";
+import { CiShoppingTag } from "react-icons/ci";
 
 // ==========================
 // 🔹 Config
 // ==========================
 const CART_KEY = "ecom_cart";
-
-// ✅ Dynamic Backend API from .env (VITE_API_URL)
-// const BASE_URL = import.meta.env.VITE_API_URL?.trim().replace(/\/$/, "") || "";
 const API_URL = `https://saheli-backend.vercel.app/api/products`;
 
 // ==========================
@@ -50,11 +48,12 @@ export default function Front() {
   const [sort, setSort] = useState("default");
   const [showToast, setShowToast] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [loading, setLoading] = useState(true); // ⭐ FIX
   const cardsRef = useRef([]);
   const navigate = useNavigate();
 
   // ==========================
-  // 🔹 Fetch Products from Backend
+  // 🔹 Fetch Products
   // ==========================
   useEffect(() => {
     async function fetchProducts() {
@@ -63,13 +62,34 @@ export default function Front() {
         setProducts(res.data.products || res.data || []);
       } catch (err) {
         console.error("❌ Error fetching products:", err);
+      } finally {
+        setTimeout(() => setLoading(false), 600);
       }
     }
     fetchProducts();
   }, []);
 
   // ==========================
-  // 🔹 GSAP Animation on Load
+  // 🔥 LOADER (NO HOOK ERROR)
+  // ==========================
+  const Loader = () => (
+    <div className="fixed inset-0 flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100 z-[9999]">
+      <div className="text-center">
+        <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+
+        <h1 className="mt-6 text-2xl font-bold   text-blue-700 tracking-wide animate-pulse">
+          Saheli <span className="text-gray-700">Store…</span>
+        </h1>
+
+        <div className="text-sm text-gray-600 flex items-center text-center gap-3 mt-2">
+         <h1> Loading your experience</h1>  <CiShoppingTag className="text-xl" />
+        </div>
+      </div>
+    </div>
+  );
+
+  // ==========================
+  // 🔹 GSAP Animation
   // ==========================
   useEffect(() => {
     const validCards = cardsRef.current.filter((el) => el);
@@ -120,21 +140,22 @@ export default function Front() {
   const bestSellers = randomize(products.filter((p) => p.bestSeller));
 
   // ==========================
-  // 🔹 Cart System
+  // 🔹 Cart
   // ==========================
   function addToCart(product) {
     if (product.stock <= 0) return;
-    const currentCart = readCart();
-    const existing = currentCart.find((c) => c._id === product._id);
+    const existing = cart.find((c) => c._id === product._id);
+
     const updated = existing
-      ? currentCart.map((c) =>
+      ? cart.map((c) =>
           c._id === product._id ? { ...c, qty: c.qty + 1 } : c
         )
-      : [...currentCart, { ...product, qty: 1 }];
+      : [...cart, { ...product, qty: 1 }];
+
     saveCart(updated);
     setCart(updated);
     setShowToast(true);
-    setTimeout(() => setShowToast(false), 2000);
+    setTimeout(() => setShowToast(false), 500);
   }
 
   const cartCount = cart.reduce((sum, item) => sum + item.qty, 0);
@@ -144,6 +165,8 @@ export default function Front() {
   // ==========================
   return (
     <>
+      {loading && <Loader />}
+
       <div
         className="min-h-screen w-full bg-fixed bg-cover bg-center bg-no-repeat"
         style={{
@@ -239,7 +262,7 @@ export default function Front() {
             </div>
           </div>
 
-          {/* 🔹 Products Section */}
+          {/* 🔹 Products Grid */}
           <div className="w-full grid grid-cols-1 lg:grid-cols-4 gap-6 px-4 sm:px-6 py-8">
             <div className="lg:col-span-3">
               <h2 className="text-lg sm:text-2xl font-bold mb-4 text-gray-800">
@@ -282,7 +305,7 @@ export default function Front() {
             </aside>
           </div>
 
-          {/* 🔹 Category Sections */}
+          {/* 🔹 Category Wise Section */}
           <div className="w-full mt-10 px-4 sm:px-6 space-y-10">
             {categories
               .filter((c) => c !== "All")
@@ -309,7 +332,7 @@ export default function Front() {
               })}
           </div>
 
-          {/* 🔹 Toast Notification */}
+          {/* 🔹 Toast */}
           {showToast && (
             <div className="fixed top-5 right-5 bg-green-500 text-white flex items-center gap-2 px-4 py-2 rounded-full shadow-lg animate-bounce z-50">
               <FaCheckCircle /> Added to Cart
@@ -322,10 +345,11 @@ export default function Front() {
 }
 
 // ==========================
-// 🔹 Product Card Component
+// 🔹 Product Card
 // ==========================
 function ProductCard({ product, index, cardsRef, addToCart }) {
   const navigate = useNavigate();
+
   return (
     <div
       key={product._id}
@@ -390,6 +414,7 @@ function SidebarSection({ title, color, products, badge }) {
       >
         <MdOutlineShoppingCart /> {title}
       </h4>
+
       {products.length === 0 ? (
         <p className="text-center text-gray-500 italic text-sm">
           No products yet ✨
