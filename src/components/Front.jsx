@@ -15,6 +15,7 @@ import {
 import { MdOutlineShoppingCart } from "react-icons/md";
 import { useNavigate } from "react-router-dom";
 import { CiShoppingTag } from "react-icons/ci";
+import Banner from "./Banner";
 
 // ==========================
 // 🔹 Config
@@ -63,7 +64,7 @@ export default function Front() {
       } catch (err) {
         console.error("❌ Error fetching products:", err);
       } finally {
-        setTimeout(() => setLoading(false), 600);
+        setTimeout(() => setLoading(false), 100);
       }
     }
     fetchProducts();
@@ -178,13 +179,13 @@ export default function Front() {
           <header className="sticky top-0 z-50 bg-white shadow-md w-full">
             <div className="flex justify-between items-center px-6 md:px-10 py-3">
               <div
-                className="flex items-center gap-2 text-xl sm:text-2xl font-bold text-blue-600 cursor-pointer"
+                className="flex items-center gap-2 text-xl sm:text-2xl   text-blue-600 cursor-pointer"
                 onClick={() => {
                   navigate("/");
                   window.scrollTo({ top: 0, behavior: "smooth" });
                 }}
               >
-                Saheli<span className="text-gray-700 font-medium">Store</span>
+                Saheli<span className="text-gray-700 font-light">Store</span>
               </div>
 
               <div className="hidden md:flex items-center border border-gray-300 rounded-full px-4 py-2 w-[450px] lg:w-[600px] bg-gray-50 shadow-sm">
@@ -236,8 +237,20 @@ export default function Front() {
             )}
           </header>
 
+
+
+<Banner />
+        
+
+
+
+
+
+              
           {/* 🔹 Filters */}
           <div className="w-full px-6 mt-4 flex flex-wrap justify-between items-center gap-3">
+              
+
             <div className="flex flex-wrap gap-2">
               <select
                 value={category}
@@ -264,6 +277,9 @@ export default function Front() {
 
           {/* 🔹 Products Grid */}
           <div className="w-full grid grid-cols-1 lg:grid-cols-4 gap-6 px-4 sm:px-6 py-8">
+
+                  
+
             <div className="lg:col-span-3">
               <h2 className="text-lg sm:text-2xl font-bold mb-4 text-gray-800">
                 Featured Products
@@ -354,38 +370,54 @@ function ProductCard({ product, index, cardsRef, addToCart }) {
     <div
       key={product._id}
       ref={(el) => cardsRef && (cardsRef.current[index] = el)}
-      className="group bg-white rounded-xl shadow-md border border-gray-100 hover:shadow-lg transition-all duration-300 cursor-pointer relative flex flex-col justify-between h-[370px] sm:h-[420px] overflow-hidden"
       onClick={() => {
         navigate(`/product/${product._id}`);
         window.scrollTo({ top: 0, behavior: "smooth" });
       }}
+      className="group bg-white rounded-2xl border border-gray-100 
+      shadow-sm hover:shadow-md transition-all duration-300 
+      cursor-pointer relative flex flex-col justify-between 
+      h-[360px] sm:h-[410px] overflow-hidden"
     >
-      <div className="flex justify-center items-center bg-gray-50 h-[220px] sm:h-[260px] overflow-hidden">
+      {/* IMAGE */}
+      <div className="flex justify-center items-center bg-gray-100/60 h-[220px] sm:h-[260px] overflow-hidden">
         <img
           src={product.image}
           alt={product.title}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          className="w-full h-full object-cover transition-transform duration-500 
+          group-hover:scale-105"
         />
       </div>
-      <div className="p-3 flex flex-col justify-between flex-grow">
-        <h3 className="font-semibold text-sm text-gray-800 truncate">
-          {product.title}
-        </h3>
-        <p className="text-xs text-gray-500">{product.category}</p>
-        <div className="flex justify-between items-center mt-2">
-          <span className="text-blue-600 font-bold text-sm">
+
+      {/* CONTENT */}
+      <div className="p-4 flex flex-col justify-between flex-grow">
+        <div>
+          <h3 className="text-[13px] text-gray-800 truncate leading-5">
+            {product.title}
+          </h3>
+
+          <p className="text-[11px] text-gray-500 mt-1">
+            {product.category}
+          </p>
+        </div>
+
+        {/* PRICE + BUTTON */}
+        <div className="flex justify-between items-center mt-4">
+          <span className="text-sm text-gray-700">
             ₹{product.price}
           </span>
+
           <button
             onClick={(e) => {
               e.stopPropagation();
               addToCart(product);
             }}
             disabled={product.stock <= 0}
-            className={`px-3 py-1.5 rounded-lg text-xs text-white ${
+            className={`px-4 py-1.5 rounded-full text-[11px] transition
+            ${
               product.stock <= 0
-                ? "bg-gray-400 cursor-not-allowed"
-                : "bg-blue-600 hover:bg-blue-700"
+                ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                : "bg-yellow-400 text-gray-900 hover:bg-yellow-300"
             }`}
           >
             {product.stock <= 0 ? "Out of Stock" : "Add to Cart"}
@@ -395,6 +427,8 @@ function ProductCard({ product, index, cardsRef, addToCart }) {
     </div>
   );
 }
+
+
 
 // ==========================
 // 🔹 Sidebar Section

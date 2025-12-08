@@ -5,13 +5,14 @@ import {
   FaMoneyBillWave,
   FaInfoCircle,
 } from "react-icons/fa";
+import Navbar from "../Navbar";
 
 export default function Terms() {
   return (
     <div className="max-w-5xl mx-auto px-6 py-10 text-gray-800">
-
+<Navbar />
       {/* Header */}
-      <div className="text-center mb-10">
+      <div className="text-center mt-10 mb-10">
         <FaFileContract className="text-5xl text-blue-600 mx-auto mb-4" />
         <h1 className="text-4xl font-bold mb-2">Terms & Conditions</h1>
         <p className="text-gray-600">

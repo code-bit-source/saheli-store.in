@@ -1,10 +1,11 @@
 // ==========================
-// ProductView.jsx – Minimal UI + ScrollToTop + Recommended
+// ProductView.jsx – Professional Clean UI
 // ==========================
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { FaArrowLeft, FaCheckCircle } from "react-icons/fa";
+import Navbar from "./Navbar";
 
 const API_URL = `https://saheli-backend.vercel.app/api/products`;
 const CART_KEY = "ecom_cart";
@@ -30,12 +31,10 @@ export default function ProductView() {
   const [loading, setLoading] = useState(true);
   const [showToast, setShowToast] = useState(false);
 
-  // Scroll to top when product changes
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [id]);
 
-  // Fetch Selected Product
   useEffect(() => {
     async function fetchProduct() {
       try {
@@ -53,7 +52,6 @@ export default function ProductView() {
     fetchProduct();
   }, [id]);
 
-  // Fetch Recommended
   useEffect(() => {
     async function fetchRecommended() {
       try {
@@ -65,7 +63,6 @@ export default function ProductView() {
     fetchRecommended();
   }, []);
 
-  // Add to Cart
   function addToCart(p) {
     if (!p || p.stock <= 0) return;
 
@@ -81,13 +78,12 @@ export default function ProductView() {
     saveCart(updated);
 
     setShowToast(true);
-    setTimeout(() => setShowToast(false), 2000);
+    setTimeout(() => setShowToast(false), 1800);
   }
 
-  // Loading
   if (loading)
     return (
-      <div className="flex justify-center items-center min-h-screen text-gray-600 text-xl">
+      <div className="flex justify-center items-center min-h-screen text-gray-500">
         Loading product...
       </div>
     );
@@ -95,10 +91,10 @@ export default function ProductView() {
   if (!product)
     return (
       <div className="flex flex-col justify-center items-center min-h-screen">
-        <p className="text-gray-600">Product not found</p>
+        <p className="text-gray-500">Product not found</p>
         <button
           onClick={() => navigate(-1)}
-          className="mt-3 bg-blue-600 text-white px-4 py-2 rounded"
+          className="mt-3 bg-gray-800 text-white px-4 py-2 rounded"
         >
           Go Back
         </button>
@@ -107,72 +103,71 @@ export default function ProductView() {
 
   return (
     <div className="min-h-screen bg-gray-100 py-8 px-4 sm:px-6">
-
+        <Navbar />
       {/* BACK BUTTON */}
       <div className="max-w-6xl mx-auto mb-6">
         <button
-          onClick={() => {
-            navigate(-1);
-            window.scrollTo({ top: 0, behavior: "smooth" });
-          }}
-          className="flex items-center gap-2 text-blue-600 hover:text-blue-800 text-lg font-medium"
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 text-sm"
         >
           <FaArrowLeft /> Back
         </button>
       </div>
 
-      {/* ========================== */}
-      {/* 🔥 MINIMAL PRODUCT SECTION */}
-      {/* ========================== */}
-      <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
+      {/* PRODUCT SECTION */}
+      <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-10">
 
-        {/* IMAGE SECTION (Big + Clean) */}
-        <div className="bg-white rounded-2xl shadow-md p-6 flex items-center justify-center">
+        {/* IMAGE SECTION (FIXED HEIGHT) */}
+        <div className="bg-white rounded-2xl shadow-sm p-6 flex items-center justify-center">
           <img
             src={product.image}
-            className="w-full max-w-[500px] object-contain rounded-md   transition-transform"
+            alt={product.title}
+            className="w-full h-[420px] object-contain rounded-lg"
           />
         </div>
 
-        {/* RIGHT SIDE – Minimal Details */}
-        <div className="flex flex-col justify-between bg-white p-6 rounded-2xl shadow-md">
+        {/* RIGHT SIDE DETAILS */}
+        <div className="flex flex-col justify-between bg-white p-6 rounded-2xl shadow-sm">
 
-          {/* Title */}
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">
+            <h1 className="text-2xl sm:text-3xl text-gray-800">
               {product.title}
             </h1>
-            <p className="text-gray-500 text-sm mt-1">{product.category}</p>
 
-            {/* Price */}
+            <p className="text-gray-500 text-sm mt-1">
+              {product.category}
+            </p>
+
             <div className="mt-4">
-              <p className="text-3xl sm:text-4xl font-bold text-blue-700">
+              <p className="text-3xl text-gray-900">
                 ₹{product.price}
               </p>
 
               {product.stock > 0 ? (
-                <p className="text-green-600 mt-1 font-medium">
-                  ✔ In Stock ({product.stock})
+                <p className="text-green-600 mt-1 text-sm">
+                  In Stock ({product.stock})
                 </p>
               ) : (
-                <p className="text-red-500 mt-1 font-medium">Out of Stock</p>
+                <p className="text-red-500 mt-1 text-sm">
+                  Out of Stock
+                </p>
               )}
             </div>
 
-            {/* Description minimal */}
             <p className="mt-4 text-gray-700 leading-relaxed text-sm">
               {product.description}
             </p>
           </div>
 
-          {/* Buttons */}
-          <div className="mt-6 flex flex-col sm:flex-row gap-4">
+          {/* BUTTONS */}
+          <div className="mt-8 flex flex-col sm:flex-row gap-4">
             <button
               onClick={() => addToCart(product)}
-              className={`flex-1 py-3 rounded-lg text-white font-semibold text-lg ${
+              disabled={product.stock <= 0}
+              className={`flex-1 py-3 rounded-full text-sm transition ${
                 product.stock <= 0
-                  ? "bg-gray-400 cursor-not-allowed"
-                  : "bg-blue-600 hover:bg-blue-700"
+                  ? "bg-gray-300 text-gray-600 cursor-not-allowed"
+                  : "bg-yellow-400 text-gray-900 hover:bg-yellow-300"
               }`}
             >
               Add to Cart
@@ -180,28 +175,25 @@ export default function ProductView() {
 
             <button
               onClick={() => navigate("/cart")}
-              className="flex-1 py-3 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-semibold text-lg"
+              className="flex-1 py-3 rounded-full bg-gray-900 hover:bg-gray-800 text-white text-sm"
             >
               Go to Cart
             </button>
           </div>
-
         </div>
       </div>
 
-      {/* Toast */}
+      {/* TOAST */}
       {showToast && (
-        <div className="fixed top-6 right-6 bg-green-500 text-white px-4 py-2 rounded-full shadow-lg animate-bounce">
+        <div className="fixed top-6 right-6 bg-green-500 text-white px-4 py-2 rounded-full shadow animate-pulse flex items-center gap-2">
           <FaCheckCircle /> Added to Cart
         </div>
       )}
 
-      {/* ================================ */}
-      {/* 🔥 RECOMMENDED SECTION */}
-      {/* ================================ */}
+      {/* RECOMMENDED */}
       {recommended.length > 0 && (
-        <div className="max-w-6xl mx-auto mt-10 bg-white p-6 rounded-2xl shadow-lg">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">
+        <div className="max-w-6xl mx-auto mt-12 bg-white p-6 rounded-2xl shadow-sm">
+          <h2 className="text-lg text-gray-800 mb-5">
             Recommended Products
           </h2>
 
@@ -209,23 +201,20 @@ export default function ProductView() {
             {recommended.map((item) => (
               <div
                 key={item._id}
-                onClick={() => {
-                  navigate(`/product/${item._id}`);
-                  window.scrollTo({ top: 0, behavior: "smooth" });
-                }}
-                className="cursor-pointer border rounded-xl bg-gray-50 shadow hover:shadow-lg transition hover:-translate-y-1 overflow-hidden"
+                onClick={() => navigate(`/product/${item._id}`)}
+                className="cursor-pointer bg-gray-50 rounded-xl shadow-sm hover:shadow-md transition overflow-hidden"
               >
                 <img
                   src={item.image}
-                  className="h-40 w-full object-cover"
+                  className="h-[170px] w-full object-cover"
                 />
 
                 <div className="p-3">
-                  <h3 className="font-medium text-gray-800 truncate">
+                  <h3 className="text-sm text-gray-700 truncate">
                     {item.title}
                   </h3>
 
-                  <p className="text-blue-600 font-bold mt-1">
+                  <p className="text-gray-900 text-sm mt-1">
                     ₹{item.price}
                   </p>
 
@@ -234,7 +223,7 @@ export default function ProductView() {
                       e.stopPropagation();
                       addToCart(item);
                     }}
-                    className="w-full bg-green-600 hover:bg-green-700 text-white mt-2 py-1.5 rounded-lg text-sm"
+                    className="w-full bg-yellow-400 hover:bg-yellow-300 mt-2 py-1.5 rounded-full text-[12px]"
                   >
                     Add to Cart
                   </button>
@@ -242,7 +231,6 @@ export default function ProductView() {
               </div>
             ))}
           </div>
-
         </div>
       )}
     </div>
