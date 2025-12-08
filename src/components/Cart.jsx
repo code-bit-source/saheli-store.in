@@ -137,45 +137,73 @@ export default function Cart() {
   );
 
   // Checkout
-  const handleCheckout = async (e) => {
-    e.preventDefault();
+const handleCheckout = async (e) => {
+  e.preventDefault();
 
-    if (!cart.length) return alert("🛒 Your cart is empty!");
-    if (!address.name || !address.phone || !address.line1)
-      return alert("⚠️ Please fill all required fields.");
+  if (!cart.length) return alert("🛒 Your cart is empty!");
+  if (!address.name || !address.phone || !address.line1)
+    return alert("⚠️ Please fill all required fields.");
 
-    try {
-      setLoading(true);
+  try {
+    setLoading(true);
 
-      const normalizedCart = normalizeCart(cart);
+    // ✅ FAST CART NORMALIZATION
+    const normalizedCart = cart.map((item) => ({
+      productId: item._id || item.id || "",
+      title: item.title || item.name || "Product",
+      price: Number(item.price) || 0,
+      qty: Number(item.qty) || 1,
+      image: item.image || "",
+    }));
 
-      const order = {
-        customer: address,
-        cartItems: normalizedCart,
-        totalPrice: finalTotal, // ⬅ delivery charge included
-        deliveryCharge: DELIVERY_CHARGE,
-        paymentMethod: "Cash on Delivery",
-        orderStatus: "Pending",
-      };
+    const order = {
+      customer: {
+        name: address.name,
+        phone: address.phone,
+        address: {
+          line1: address.line1,
+          city: address.city || "",
+          state: address.state || "",
+          pincode: address.pincode || "",
+        },
+      },
+      cartItems: normalizedCart,
+      totalPrice: finalTotal,
+      paymentMethod: "Cash on Delivery",
+    };
 
-      const res = await axios.post(ORDER_API, order);
-      const orderId = res.data?.order?._id || res.data?._id;
+    // ✅ ✅ FAST FETCH (NO EXTRA TEXT PARSE)
+    const res = await fetch(ORDER_API, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(order),
+    });
 
-      // Generate receipt async
-      axios.get(`${ORDER_API}/receipt/${orderId}`).catch(() => {});
+    const data = await res.json(); // ✅ DIRECT JSON (FAST)
 
-      // WhatsApp Message
-      const message = `
+    if (!res.ok || !data?.order?._id) {
+      throw new Error(data?.message || "Order failed");
+    }
+
+    const orderId = data.order._id;
+
+    // ✅ ✅ RECEIPT BACKGROUND ME (NON-BLOCKING)
+    setTimeout(() => {
+      fetch(`${ORDER_API}/receipt/${orderId}`).catch(() => {});
+    }, 800);
+
+    // ✅ WhatsApp Message
+    const message = `
 🧾 *New Order Received*
 -----------------------------------
 👤 *Customer:* ${order.customer.name}
 📞 *Phone:* ${order.customer.phone}
-🏠 *Address:* ${order.customer.line1}, ${order.customer.city}, ${order.customer.state} - ${order.customer.pincode}
+🏠 *Address:* ${order.customer.address.line1}, ${order.customer.address.city}, ${order.customer.address.state} - ${order.customer.address.pincode}
 
 📦 *Items:*
 ${order.cartItems
-        .map((i) => `• ${i.title} ×${i.qty} = ₹${i.price * i.qty}`)
-        .join("\n")}
+  .map((i) => `• ${i.title} ×${i.qty} = ₹${i.price * i.qty}`)
+  .join("\n")}
 
 💵 *Subtotal:* ₹${subtotal}
 🚚 *Delivery Charge:* ₹${DELIVERY_CHARGE}
@@ -184,20 +212,28 @@ ${order.cartItems
 -----------------------------------
 Thank you for shopping with *Saheli Store*!`;
 
-      const phoneNumber = "919315868930";
-      const encoded = encodeURIComponent(message);
+    const phoneNumber = "919315868930";
+    const encoded = encodeURIComponent(message);
 
+    // alert("✅ Order Placed Successfully!");
+
+    // ✅ ✅ REDIRECT SLIGHTLY DELAYED (SMOOTHER UX)
+    setTimeout(() => {
       window.location.href = `https://wa.me/${phoneNumber}?text=${encoded}`;
+    }, 300);
 
-      localStorage.removeItem(CART_KEY);
-      setCart([]);
+    localStorage.removeItem(CART_KEY);
+    setCart([]);
 
-    } catch {
-      alert("❌ Failed to place order. Try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  } catch (err) {
+    console.error("❌ ORDER ERROR:", err);
+    alert(err.message || "❌ Failed to place order. Try again.");
+  } finally {
+    setLoading(false);
+  }
+};
+
+
 
   // ==========================
   // UI – improved styling for cart items & checkout panel

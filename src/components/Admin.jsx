@@ -76,6 +76,21 @@ export default function Admin() {
       console.error("❌ Order Fetch Error:", err);
     }
   }
+async function handlePaymentChange(id, paymentMethod) {
+  try {
+    await axios.put(`${ORDER_URL}/${id}`, {
+      paymentMethod: paymentMethod,
+      paymentStatus:
+        paymentMethod === "Online Payment" ? "Paid" : "Pending",
+    });
+
+    fetchOrders();
+  } catch (err) {
+    console.error("❌ Failed to update payment:", err);
+    alert("❌ Failed to update payment method");
+  }
+}
+
 
   async function refreshAll() {
     try {
@@ -97,29 +112,39 @@ export default function Admin() {
   // Excel Export (XLSX)
   // --------------------------
   function exportOrdersExcel() {
-    if (!orders || orders.length === 0) {
-      alert("No orders to export.");
-      return;
-    }
-
-    const excelData = orders.map((o) => ({
-      OrderID: o._id,
-      CustomerName: o.customer?.name || "",
-      Phone: o.customer?.phone || "",
-      Address:
-        `${o.customer?.address?.line1 || ""}, ${o.customer?.address?.city || ""}, ${o.customer?.address?.state || ""} - ${o.customer?.address?.pincode || ""}`,
-      TotalPrice: o.totalPrice || 0,
-      PaymentMethod: o.paymentMethod || "",
-      PaymentStatus: o.paymentStatus || "",
-      OrderStatus: o.orderStatus || "",
-      Date: new Date(o.createdAt).toLocaleString(),
-    }));
-
-    const ws = XLSX.utils.json_to_sheet(excelData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Orders");
-    XLSX.writeFile(wb, `orders_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  if (!orders || orders.length === 0) {
+    alert("No orders to export.");
+    return;
   }
+
+  const excelData = orders.map((o) => ({
+    OrderID: o._id,
+    CustomerName: o.customer?.name || "",
+    Phone: o.customer?.phone || "",
+    Address: `${o.customer?.address?.line1 || ""}, ${o.customer?.address?.city || ""}, ${o.customer?.address?.state || ""} - ${o.customer?.address?.pincode || ""}`,
+
+    // ✅ PRODUCTS ADDED HERE (ALL ITEMS OF USER)
+    Products: (o.cartItems || [])
+      .map((p) => `${p.title} ×${p.qty}`)
+      .join(", "),
+
+    TotalPrice: o.totalPrice || 0,
+    PaymentMethod: o.paymentMethod || "",
+    PaymentStatus: o.paymentStatus || "",
+    OrderStatus: o.orderStatus || "",
+    Date: new Date(o.createdAt).toLocaleString(),
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(excelData);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Orders");
+
+  XLSX.writeFile(
+    wb,
+    `orders_${new Date().toISOString().slice(0, 10)}.xlsx`
+  );
+}
+
 
   // --------------------------
   // Product Dashboard (Add/Edit/Delete)
@@ -156,18 +181,50 @@ export default function Admin() {
       setEditProduct(null);
     };
 
-    async function addProduct(e) {
-      e.preventDefault();
-      try {
-        const res = await axios.post(API_URL, form);
-        setProducts([res.data.product || res.data, ...products]);
-        resetForm();
-        alert("✅ Product added successfully!");
-      } catch (err) {
-        console.error(err);
-        alert("❌ Failed to add product");
-      }
+ async function addProduct(e) {
+  e.preventDefault();
+
+  // ✅ FRONTEND VALIDATION
+  if (!form.title || !form.price) {
+    alert("⚠️ Please enter product title & price");
+    return;
+  }
+
+  try {
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        ...form,
+        price: Number(form.price), // ✅ price safe
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data?.message || "Server error");
     }
+
+    const newProduct = data.product;
+
+    if (!newProduct) {
+      throw new Error("Invalid server response");
+    }
+
+    setProducts([newProduct, ...products]);
+    resetForm();
+
+    alert("✅ Product added successfully!");
+  } catch (err) {
+    console.error("❌ ADD PRODUCT ERROR:", err.message);
+
+    alert(err.message || "❌ Failed to add product (Server error)");
+  }
+}
+
 
     async function saveEdit(e) {
       e.preventDefault();
@@ -324,13 +381,49 @@ export default function Admin() {
                 type="file"
                 accept="image/*"
                 onChange={(e) => {
-                  const file = e.target.files[0];
-                  if (file) {
-                    const reader = new FileReader();
-                    reader.onloadend = () => setForm({ ...form, image: reader.result });
-                    reader.readAsDataURL(file);
-                  }
-                }}
+  const file = e.target.files[0];
+  if (!file) return;
+
+  // ✅ IMAGE COMPRESS + RESIZE
+  const reader = new FileReader();
+  reader.readAsDataURL(file);
+
+  reader.onload = () => {
+    const img = new Image();
+    img.src = reader.result;
+
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+
+      // ✅ Max dimensions (important for Vercel)
+      const MAX_WIDTH = 800;
+      const MAX_HEIGHT = 800;
+
+      let width = img.width;
+      let height = img.height;
+
+      if (width > height && width > MAX_WIDTH) {
+        height = Math.round((height * MAX_WIDTH) / width);
+        width = MAX_WIDTH;
+      } else if (height > MAX_HEIGHT) {
+        width = Math.round((width * MAX_HEIGHT) / height);
+        height = MAX_HEIGHT;
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, width, height);
+
+      // ✅ COMPRESSED BASE64 (0.7 = 70% quality)
+      const compressedBase64 = canvas.toDataURL("image/jpeg", 0.7);
+
+      setForm({ ...form, image: compressedBase64 });
+    };
+  };
+}}
+
                 className="w-full border p-2 rounded-lg cursor-pointer"
               />
               {form.image && (
@@ -434,41 +527,25 @@ export default function Admin() {
   }
 
   // Receipt handling: robust
-  async function handleReceipt(id, existingUrl) {
-    try {
-      if (existingUrl) {
-        const fullUrl = existingUrl.startsWith("http")
-          ? existingUrl
-          : `https://saheli-backend.vercel.app${existingUrl}`;
+ async function handleReceipt(id) {
+  try {
+    // ✅ 1. FIRST → Generate Receipt
+    await axios.get(`${ORDER_URL}/receipt/${id}`);
 
-        window.open(fullUrl, "_blank", "noopener,noreferrer");
-        return;
-      }
+    // ✅ 2. SECOND → Download Receipt (ACTUAL PDF)
+    const downloadUrl = `${ORDER_URL}/receipt/download/${id}`;
 
-      const res = await axios.get(`${ORDER_URL}/receipt/${id}`);
-      const pdfUrl =
-        res.data?.url ||
-        res.data?.pdfUrl ||
-        res.data?.receipt?.pdfUrl ||
-        null;
+    window.open(downloadUrl, "_blank", "noopener,noreferrer");
 
-      if (pdfUrl) {
-        const fullUrl = pdfUrl.startsWith("http")
-          ? pdfUrl
-          : `https://saheli-backend.vercel.app${pdfUrl}`;
+    // ✅ Refresh Orders after receipt generated
+    fetchOrders();
 
-        window.open(fullUrl, "_blank", "noopener,noreferrer");
-        fetchOrders();
-      } else {
-        alert("Receipt generating... refresh after a few seconds.");
-        fetchOrders();
-      }
-    } catch (err) {
-      console.error("❌ Receipt Error:", err);
-      alert("❌ Failed to open or generate receipt");
-      fetchOrders();
-    }
+  } catch (err) {
+    console.error("❌ Receipt Error:", err);
+    alert("❌ Failed to generate or download receipt");
   }
+}
+
 
   function Orders() {
     const [search, setSearch] = useState("");
@@ -506,75 +583,150 @@ export default function Admin() {
         {filtered.length === 0 ? (
           <p className="text-gray-500 text-center">No orders yet.</p>
         ) : (
-          <div className="overflow-x-auto hide-scrollbar">
-            <table className="w-full text-sm border">
-              <thead className="bg-gray-50 text-gray-700">
-                <tr>
-                  <th className="border p-2">#</th>
-                  <th className="border p-2">Customer</th>
-                  <th className="border p-2">Total</th>
-                  <th className="border p-2">Payment</th>
-                  <th className="border p-2">Status</th>
-                  <th className="border p-2">Date</th>
-                  <th className="border p-2">Receipt</th>
-                  <th className="border p-2">Delete</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((o, i) => (
-                  <tr key={o._id} className="border-b text-center hover:bg-gray-50">
-                    <td className="p-2">{i + 1}</td>
-                    <td className="p-2">{o.customer?.name}</td>
-                    <td className="p-2 text-green-600 font-semibold">₹{o.totalPrice}</td>
-                    <td className="p-2">
-                      {o.paymentStatus === "Paid" ? "Online Payment" : o.paymentMethod}
-                    </td>
-                    <td className="p-2">
-                      <select
-                        value={o.orderStatus}
-                        onChange={(e) => handleStatusChange(o._id, e.target.value)}
-                        className="border rounded p-1 text-sm"
-                      >
-                        {[
-                          "Pending",
-                          "Processing",
-                          "Packed",
-                          "Shipped",
-                          "Delivered",
-                          "Cancelled",
-                        ].map((s) => (
-                          <option key={s} value={s}>
-                            {s}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="p-2">{new Date(o.createdAt).toLocaleDateString()}</td>
+         <div className="overflow-x-auto hide-scrollbar">
+  <table className="w-full text-sm border-collapse">
+    <thead className="bg-gray-100 text-gray-700">
+      <tr>
+        <th className="p-3 text-left">#</th>
+        <th className="p-3 text-left">Customer</th>
+        <th className="p-3 text-left">Phone</th>
+        <th className="p-3 text-left">Address</th>
+        <th className="p-3 text-left">Products</th>
+        <th className="p-3 text-left">Total</th>
+        <th className="p-3 text-left">Payment</th>
+        <th className="p-3 text-left">Status</th>
+        <th className="p-3 text-left">Date</th>
+        <th className="p-3 text-center">Receipt</th>
+        <th className="p-3 text-center">Delete</th>
+      </tr>
+    </thead>
 
-                    <td className="p-2">
-                      <button
-                        onClick={() =>
-                          handleReceipt(o._id, o.receipt?.pdfUrl || null)
-                        }
-                        className="text-blue-600 hover:text-blue-800 flex items-center justify-center mx-auto"
-                      >
-                        <FaDownload />
-                      </button>
-                    </td>
+    <tbody>
+      {filtered.map((o, i) => (
+        <tr
+          key={o._id}
+          className="border-b hover:bg-gray-50 align-top"
+        >
+          {/* INDEX */}
+          <td className="p-3">{i + 1}</td>
 
-                    <td className="p-2">
-                      <button
-                        onClick={() => deleteOrder(o._id)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        <FaTrashAlt />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          {/* CUSTOMER */}
+          <td className="p-3">
+            <p className="text-gray-800">{o.customer?.name}</p>
+            <p className="text-xs text-gray-500">
+              {o.customer?.email || "No email"}
+            </p>
+          </td>
+
+          {/* PHONE */}
+          <td className="p-3 text-gray-700">
+            {o.customer?.phone || "N/A"}
+          </td>
+
+          {/* ADDRESS */}
+          <td className="p-3 text-gray-700 text-xs leading-5">
+            {o.customer?.address?.line1 || "-"},
+            <br />
+            {o.customer?.address?.city || ""},{" "}
+            {o.customer?.address?.state || ""}
+            <br />
+            {o.customer?.address?.pincode || ""}
+          </td>
+
+          
+       {/* ORDERED PRODUCTS */}
+<td className="p-3">
+  <div className="space-y-1">
+    {o.cartItems?.map((p, idx) => (
+      <div
+        key={idx}
+        className="text-xs text-gray-700 flex justify-between gap-3"
+      >
+        <span className="line-clamp-1">{p.title}</span>
+        <span className="text-gray-500">× {p.qty}</span>
+      </div>
+    ))}
+  </div>
+</td>
+
+ 
+          {/* TOTAL */}
+          <td className="p-3 text-green-600">
+            ₹{o.totalPrice}
+          </td>
+
+          {/* PAYMENT */}
+         {/* PAYMENT */}
+<td className="p-3">
+  <select
+    value={o.paymentMethod}
+    onChange={(e) =>
+      handlePaymentChange(o._id, e.target.value)
+    }
+    className="bg-white text-xs border rounded px-2 py-1"
+  >
+    <option value="Cash on Delivery">Cash on Delivery</option>
+    <option value="Online Payment">Online Payment</option>
+  </select>
+</td>
+
+
+          {/* STATUS */}
+          <td className="p-3">
+            <select
+              value={o.orderStatus}
+              onChange={(e) =>
+                handleStatusChange(o._id, e.target.value)
+              }
+              className="bg-white text-xs border rounded px-2 py-1"
+            >
+              {[
+                "Pending",
+                "Processing",
+                "Packed",
+                "Shipped",
+                "Delivered",
+                "Cancelled",
+              ].map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </td>
+
+          {/* DATE */}
+          <td className="p-3 text-gray-600">
+            {new Date(o.createdAt).toLocaleDateString()}
+          </td>
+
+          {/* RECEIPT */}
+          <td className="p-3 text-center">
+            <button
+              onClick={() =>
+                handleReceipt(o._id, o.receipt?.pdfUrl || null)
+              }
+              className="text-blue-600 hover:text-blue-800"
+            >
+              <FaDownload />
+            </button>
+          </td>
+
+          {/* DELETE */}
+          <td className="p-3 text-center">
+            <button
+              onClick={() => deleteOrder(o._id)}
+              className="text-red-500 hover:text-red-700"
+            >
+              <FaTrashAlt />
+            </button>
+          </td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>
+
         )}
       </div>
     );
