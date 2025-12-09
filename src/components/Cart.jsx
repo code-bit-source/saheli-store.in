@@ -19,7 +19,7 @@ import Navbar from "./Navbar";
 const CART_KEY = "ecom_cart";
 
 // Backend URLs
-const BASE_URL = "https://saheli-backend.vercel.app";
+const BASE_URL = import.meta.env.VITE_API_UR;
 const PRODUCT_API = `${BASE_URL}/api/products`;
 const ORDER_API = `${BASE_URL}/api/orders`;
 
@@ -171,34 +171,19 @@ const handleCheckout = async (e) => {
       paymentMethod: "Cash on Delivery",
     };
 
-    const res = await fetch(ORDER_API, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(order),
+    console.log("✅ ORDER PAYLOAD:", order); // ⭐ DEBUG LINE
+
+    const res = await axios.post(ORDER_API, order, {
+      headers: { "Content-Type": "application/json" },
     });
 
-    let data = {};
-    try {
-      data = await res.json();   // ✅ SAFE JSON PARSE
-    } catch {
-      throw new Error("Server JSON parse failed");
-    }
-
-    if (!res.ok) {
-      console.error("❌ SERVER ERROR:", data);
-      throw new Error(data?.message || "Server rejected order");
-    }
+    const data = res.data;
 
     const orderId = data?.order?._id;
-
-    if (!orderId) {
-      throw new Error("Order ID missing from server");
-    }
+    if (!orderId) throw new Error("Order ID missing from server");
 
     // ✅ Receipt (background)
-    fetch(`${ORDER_API}/receipt/${orderId}`).catch(() => {});
+    axios.get(`${ORDER_API}/receipt/${orderId}`).catch(() => {});
 
     // ✅ WhatsApp Redirect
     const message = `
@@ -218,12 +203,13 @@ const handleCheckout = async (e) => {
     setCart([]);
 
   } catch (err) {
-    console.error("❌ ORDER ERROR:", err);
-    alert(err.message || "❌ Failed to place order.");
+    console.error("❌ ORDER ERROR:", err?.response?.data || err.message);
+    alert(err?.response?.data?.message || "❌ Failed to place order.");
   } finally {
     setLoading(false);
   }
 };
+
 
 
 
