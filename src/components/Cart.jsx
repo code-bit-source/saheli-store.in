@@ -19,7 +19,7 @@ import Navbar from "./Navbar";
 const CART_KEY = "ecom_cart";
 
 // Backend URLs
-const BASE_URL = import.meta.env.VITE_API_UR;
+const BASE_URL = import.meta.env.VITE_API_URL;
 const PRODUCT_API = `${BASE_URL}/api/products`;
 const ORDER_API = `${BASE_URL}/api/orders`;
 
@@ -70,13 +70,27 @@ export default function Cart() {
 
   // Fetch products
   useEffect(() => {
-    axios
-      .get(PRODUCT_API)
-      .then((res) =>
-        setProducts(res.data.products || res.data.data || res.data || [])
-      )
-      .catch(() => {});
-  }, []);
+  axios
+    .get(PRODUCT_API)
+    .then((res) => {
+      const data = res.data;
+
+      const safeProducts = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.products)
+        ? data.products
+        : Array.isArray(data?.data)
+        ? data.data
+        : [];
+
+      setProducts(safeProducts);
+    })
+    .catch((err) => {
+      console.error("❌ PRODUCT FETCH ERROR:", err);
+      setProducts([]); // fallback
+    });
+}, []);
+
 
   // 🧮 MAIN TOTAL
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
@@ -89,7 +103,10 @@ export default function Cart() {
 
   const amountLeftForFree = Math.max(0, DELIVERY_THRESHOLD - subtotal);
 
-  const recommended = products.filter((p) => p.recommended);
+  const recommended = Array.isArray(products)
+  ? products.filter((p) => p.recommended)
+  : [];
+
 
   // Update Qty
   const updateQty = useCallback(
