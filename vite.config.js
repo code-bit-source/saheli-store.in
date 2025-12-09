@@ -3,6 +3,9 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
-  base: "/",          // ✅ YE LINE SABSE IMPORTANT HAI
+  base: "/",   // ✅ ye line bahut important hai
   plugins: [tailwindcss(), react()],
+  build: {
+    outDir: "dist"
+  }
 })
