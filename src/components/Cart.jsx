@@ -203,13 +203,37 @@ const handleCheckout = async (e) => {
     axios.get(`${ORDER_API}/receipt/${orderId}`).catch(() => {});
 
     // ✅ WhatsApp Redirect
-    const message = `
-🧾 New Order
-👤 ${order.customer.name}
-📞 ${order.customer.phone}
-🏠 ${order.customer.address.line1}
-💰 Total: ₹${finalTotal}
+  // ✅ WhatsApp Receipt Style Message
+const message = `
+🛍️ *SAHELI STORE*
+────────────────────
+ 
+👤 *Customer:* ${order.customer.name}
+📞 *Phone:* ${order.customer.phone}
+🏠 *Address:* ${order.customer.address.line1}
+
+────────────────────
+🛒 *Order Summary*:
+${normalizedCart
+  .map(
+    (item, i) =>
+      `${i + 1}. ${item.title}\n   Qty: ${item.qty} × ₹${item.price} = ₹${
+        item.qty * item.price
+      }`
+  )
+  .join("\n")}
+────────────────────
+
+💰 *Subtotal:* ₹${subtotal}
+🚚 *Delivery Charge:* ₹${DELIVERY_CHARGE}
+✅ *Total Payable:* ₹${finalTotal}
+
+💳 *Payment:* online payment
+
+🙏 Thank you for shopping with *Saheli Store*!
+We will contact you soon for confirmation.
 `;
+
 
     const phoneNumber = "919315868930";
     window.location.href = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(
