@@ -147,10 +147,9 @@ const handleCheckout = async (e) => {
   try {
     setLoading(true);
 
-    // ✅ FAST CART NORMALIZATION
     const normalizedCart = cart.map((item) => ({
-      productId: item._id || item.id || "",
-      title: item.title || item.name || "Product",
+      productId: item._id || null,
+      title: item.title || "Product",
       price: Number(item.price) || 0,
       qty: Number(item.qty) || 1,
       image: item.image || "",
@@ -168,70 +167,64 @@ const handleCheckout = async (e) => {
         },
       },
       cartItems: normalizedCart,
-      totalPrice: finalTotal,
+      totalPrice: Number(finalTotal),
       paymentMethod: "Cash on Delivery",
     };
 
-    // ✅ ✅ FAST FETCH (NO EXTRA TEXT PARSE)
     const res = await fetch(ORDER_API, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify(order),
     });
 
-    const data = await res.json(); // ✅ DIRECT JSON (FAST)
-
-    if (!res.ok || !data?.order?._id) {
-      throw new Error(data?.message || "Order failed");
+    let data = {};
+    try {
+      data = await res.json();   // ✅ SAFE JSON PARSE
+    } catch {
+      throw new Error("Server JSON parse failed");
     }
 
-    const orderId = data.order._id;
+    if (!res.ok) {
+      console.error("❌ SERVER ERROR:", data);
+      throw new Error(data?.message || "Server rejected order");
+    }
 
-    // ✅ ✅ RECEIPT BACKGROUND ME (NON-BLOCKING)
-    setTimeout(() => {
-      fetch(`${ORDER_API}/receipt/${orderId}`).catch(() => {});
-    }, 800);
+    const orderId = data?.order?._id;
 
-    // ✅ WhatsApp Message
+    if (!orderId) {
+      throw new Error("Order ID missing from server");
+    }
+
+    // ✅ Receipt (background)
+    fetch(`${ORDER_API}/receipt/${orderId}`).catch(() => {});
+
+    // ✅ WhatsApp Redirect
     const message = `
-🧾 *New Order Received*
------------------------------------
-👤 *Customer:* ${order.customer.name}
-📞 *Phone:* ${order.customer.phone}
-🏠 *Address:* ${order.customer.address.line1}, ${order.customer.address.city}, ${order.customer.address.state} - ${order.customer.address.pincode}
-
-📦 *Items:*
-${order.cartItems
-  .map((i) => `• ${i.title} ×${i.qty} = ₹${i.price * i.qty}`)
-  .join("\n")}
-
-💵 *Subtotal:* ₹${subtotal}
-🚚 *Delivery Charge:* ₹${DELIVERY_CHARGE}
------------------------------------
-💰 *Total Payable:* ₹${finalTotal}
------------------------------------
-Thank you for shopping with *Saheli Store*!`;
+🧾 New Order
+👤 ${order.customer.name}
+📞 ${order.customer.phone}
+🏠 ${order.customer.address.line1}
+💰 Total: ₹${finalTotal}
+`;
 
     const phoneNumber = "919315868930";
-    const encoded = encodeURIComponent(message);
-
-    // alert("✅ Order Placed Successfully!");
-
-    // ✅ ✅ REDIRECT SLIGHTLY DELAYED (SMOOTHER UX)
-    setTimeout(() => {
-      window.location.href = `https://wa.me/${phoneNumber}?text=${encoded}`;
-    }, 300);
+    window.location.href = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(
+      message
+    )}`;
 
     localStorage.removeItem(CART_KEY);
     setCart([]);
 
   } catch (err) {
     console.error("❌ ORDER ERROR:", err);
-    alert(err.message || "❌ Failed to place order. Try again.");
+    alert(err.message || "❌ Failed to place order.");
   } finally {
     setLoading(false);
   }
 };
+
 
 
 

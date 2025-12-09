@@ -174,70 +174,72 @@ export default function Front() {
           backgroundImage: `url("https://plus.unsplash.com/premium_photo-1681433429713-5c75cfae63fa?auto=format&fit=crop&q=80&w=1200")`,
         }}
       >
-        <div className="min-h-screen w-full bg-white/55 backdrop-blur-[1px]">
+  
           {/* 🔹 Navbar */}
-          <header className="sticky top-0 z-50 bg-white shadow-md w-full">
-            <div className="flex justify-between items-center px-6 md:px-10 py-3">
-              <div
-                className="flex items-center gap-2 text-xl sm:text-2xl   text-blue-600 cursor-pointer"
-                onClick={() => {
-                  navigate("/");
-                  window.scrollTo({ top: 0, behavior: "smooth" });
-                }}
-              >
-                Saheli<span className="text-gray-700 font-light">Store</span>
-              </div>
+          <header className="fixed top-0 left-0 w-full z-[999] bg-white shadow-md">
+  <div className="flex justify-between items-center px-6 md:px-10 py-3">
+    <div
+      className="flex items-center gap-2 text-xl sm:text-2xl text-blue-600 cursor-pointer"
+      onClick={() => {
+        navigate("/");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }}
+    >
+      Saheli<span className="text-gray-700 font-light">Store</span>
+    </div>
 
-              <div className="hidden md:flex items-center border border-gray-300 rounded-full px-4 py-2 w-[450px] lg:w-[600px] bg-gray-50 shadow-sm">
-                <FaSearch className="text-gray-500 mr-2" />
-                <input
-                  type="text"
-                  placeholder="Search for products..."
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  className="flex-1 text-gray-700 bg-transparent outline-none"
-                />
-              </div>
+    <div className="hidden md:flex items-center border border-gray-300 rounded-full px-4 py-2 w-[450px] lg:w-[600px] bg-gray-50 shadow-sm">
+      <FaSearch className="text-gray-500 mr-2" />
+      <input
+        type="text"
+        placeholder="Search for products..."
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        className="flex-1 text-gray-700 bg-transparent outline-none"
+      />
+    </div>
 
-              <div className="flex items-center gap-4">
-                <a
-                  href="/cart"
-                  className="relative flex items-center bg-blue-600 text-white px-3 py-1.5 rounded-full hover:bg-blue-700 transition"
-                >
-                  <FaShoppingCart />
-                  {cartCount > 0 && (
-                    <span className="absolute -top-2 -right-2 bg-red-600 text-xs px-1.5 py-0.5 rounded-full">
-                      {cartCount}
-                    </span>
-                  )}
-                </a>
+    <div className="flex items-center gap-4">
+      <a
+        href="/cart"
+        className="relative flex items-center bg-blue-600 text-white px-3 py-1.5 rounded-full hover:bg-blue-700 transition"
+      >
+        <FaShoppingCart />
+        {cartCount > 0 && (
+          <span className="absolute -top-2 -right-2 bg-red-600 text-xs px-1.5 py-0.5 rounded-full">
+            {cartCount}
+          </span>
+        )}
+      </a>
 
-                <button
-                  className="md:hidden text-blue-600 text-xl"
-                  onClick={() => setMenuOpen(!menuOpen)}
-                >
-                  {menuOpen ? <FaTimes /> : <FaBars />}
-                </button>
-              </div>
-            </div>
+      <button
+        className="md:hidden text-blue-600 text-xl"
+        onClick={() => setMenuOpen(!menuOpen)}
+      >
+        {menuOpen ? <FaTimes /> : <FaBars />}
+      </button>
+    </div>
+  </div>
 
-            {menuOpen && (
-              <div className="md:hidden bg-gray-100 px-4 py-3 border-t">
-                <div className="flex items-center bg-white rounded-full px-3 py-2 shadow-sm">
-                  <FaSearch className="text-gray-500 mr-2" />
-                  <input
-                    type="text"
-                    placeholder="Search products..."
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    className="flex-1 text-gray-700 outline-none text-sm"
-                  />
-                </div>
-              </div>
-            )}
-          </header>
+  {menuOpen && (
+    <div className="md:hidden bg-gray-100 px-4 py-3 border-t">
+      <div className="flex items-center bg-white rounded-full px-3 py-2 shadow-sm">
+        <FaSearch className="text-gray-500 mr-2" />
+        <input
+          type="text"
+          placeholder="Search products..."
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          className="flex-1 text-gray-700 outline-none text-sm"
+        />
+      </div>
+    </div>
+  )}
+</header>
 
-
+          
+<div className="h-[52px]"></div>
+  <div className="min-h-screen w-full bg-white/55 backdrop-blur-[1px]">
 
 <Banner />
         
@@ -349,13 +351,40 @@ export default function Front() {
           </div>
 
           {/* 🔹 Toast */}
-          {showToast && (
-            <div className="fixed top-5 right-5 bg-green-500 text-white flex items-center gap-2 px-4 py-2 rounded-full shadow-lg animate-bounce z-50">
-              <FaCheckCircle /> Added to Cart
-            </div>
-          )}
+          {/* ✅ ✅ TOAST — SCROLL SAFE + CLEAN UI */}
+ 
+
         </div>
       </div>
+
+{/* 🔹 Toast */}
+{showToast && (
+  <div className="fixed bottom-5 right-5 z-[99999] pointer-events-none">
+    <div
+      className="
+        flex items-center gap-3
+        bg-[#1e293b]
+        text-white
+        px-4 py-2.5
+        rounded-lg
+        shadow-lg
+        border border-white/10
+        animate-slide-in
+      "
+    >
+      {/* ✅ Small Icon */}
+      <FaCheckCircle className="text-green-400 text-lg" />
+
+      {/* ✅ Clean Text */}
+      <span className="text-sm font-light tracking-wide">
+        Added to cart
+      </span>
+    </div>
+  </div>
+)}
+
+
+
     </>
   );
 }
@@ -483,6 +512,11 @@ function SidebarSection({ title, color, products, badge }) {
           ))}
         </div>
       )}
+
+
+
+
+      
     </div>
   );
 }
